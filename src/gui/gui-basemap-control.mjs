@@ -120,12 +120,42 @@ export function Basemap(gui) {
 
   function showBasemap(style) {
     activeStyle = style;
-    // TODO: consider enabling dark basemap mode
-    // Make sure that the selected layer style gets updated in gui-map.js
-    // gui.state.dark_basemap = style && style.dark || false;
+  
     if (map) {
-      map.setStyle(style.url);
-      refresh();
+      if (style.type === 'vector') {
+        const rasterLayerId = 'satellite';
+        if (map.getLayer(rasterLayerId)) {
+          map.removeLayer(rasterLayerId);
+        }
+        if (map.getSource(rasterLayerId)) {
+          map.removeSource(rasterLayerId);
+        }
+        map.remove();  
+        map = null;
+        initMap();    
+      } else if (style.type === 'raster') {
+        const rasterLayerId = 'satellite';
+        if (map.getLayer(rasterLayerId)) {
+          map.removeLayer(rasterLayerId);
+        }
+        if (map.getSource(rasterLayerId)) {
+          map.removeSource(rasterLayerId);
+        }
+  
+        map.addSource(rasterLayerId, {
+          type: 'raster',
+          tiles: [style.url],
+          tileSize: style.tileSize || 256
+        });
+  
+        map.addLayer({
+          id: rasterLayerId,
+          type: 'raster',
+          source: rasterLayerId
+        });
+  
+        refresh();
+      }
     } else if (prepareMapView()) {
       initMap();
     }
@@ -204,13 +234,15 @@ export function Basemap(gui) {
   function initMap() {
     if (!enabled() || map || loading) return;
     loading = true;
+  
     loadStylesheet(params.css);
     loadScript(params.js, function() {
+      const defaultStyle = params.styles.find(style => style.id === 'streets'); // Set default style to 'streets'
       map = new window.mapboxgl.Map({
         accessToken: params.key,
         logoPosition: 'bottom-left',
         container: mapEl.node(),
-        style: activeStyle.url,
+        style: defaultStyle.url,
         bounds: getLonLatBounds(),
         doubleClickZoom: false,
         dragPan: false,
@@ -219,10 +251,31 @@ export function Basemap(gui) {
         interactive: false,
         keyboard: false,
         maxPitch: 0,
-        renderWorldCopies: true // false // false prevents panning off the map
+        renderWorldCopies: true
       });
+
       map.on('load', function() {
         loading = false;
+  
+        if (activeStyle.type === 'raster') {
+          // For raster layers (openstreetmap, satellite)
+          map.addSource(activeStyle.id, {
+            type: 'raster',
+            tiles: [activeStyle.url],
+            tileSize: activeStyle.tileSize || 256
+          });
+  
+          map.addLayer({
+            id: activeStyle.id,
+            type: 'raster',
+            source: activeStyle.id
+          });
+  
+        } else if (activeStyle.type === 'vector') {
+          // For vector basemap (streets)
+          map.setStyle(activeStyle.url);
+        }
+  
         refresh();
       });
     });

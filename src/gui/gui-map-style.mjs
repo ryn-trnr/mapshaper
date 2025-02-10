@@ -1,6 +1,6 @@
 import { internal, utils } from './gui-core';
 
-var darkStroke = "#334",
+var darkStroke = "#031533",
     lightStroke = "#b7d9ea",
     violet = "#cc6acc",
     violetFill = "rgba(249, 120, 249, 0.20)",
