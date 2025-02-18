@@ -11,7 +11,7 @@ export async function saveFileContentToClipboard(content) {
 }
 
 // Export buttons and their behavior
-export var ExportControl = function(gui) {
+export var ExportControl = function (gui) {
   var model = gui.model;
   var unsupportedMsg = "Exporting is not supported in this browser";
   var menu = gui.container.findChild('.export-options').on('click', GUI.handleDirectEvent(gui.clearMode));
@@ -22,21 +22,22 @@ export var ExportControl = function(gui) {
   new SimpleButton(menu.findChild('.close2-btn')).on('click', gui.clearMode);
 
   if (!GUI.exportIsSupported()) {
-    exportBtn.on('click', function() {
+    exportBtn.on('click', function () {
       gui.alert(unsupportedMsg);
     });
 
-    internal.writeFiles = function() {
+    internal.writeFiles = function () {
       error(unsupportedMsg);
     };
     return;
   }
 
-  model.on('update', function() {
+  model.on('update', function () {
     exportBtn.classed('disabled', !model.getActiveLayer());
   });
 
   new SimpleButton(menu.findChild('#export-btn').addClass('default-btn')).on('click', onExportClick);
+  new SimpleButton(menu.findChild('#aws-upload-btn').on('click', uploadToAWS));
   gui.addMode('export', turnOn, turnOff, exportBtn);
   gui.keyboard.onMenuSubmit(menu, onExportClick);
   var savePreferenceCheckbox;
@@ -44,21 +45,21 @@ export var ExportControl = function(gui) {
     savePreferenceCheckbox = menu.findChild('#save-preference')
       .css('display', 'inline-block')
       .findChild('input')
-      .on('change', function() {
+      .on('change', function () {
         GUI.setSavedValue('choose-save-dir', this.checked);
       })
       .attr('checked', GUI.getSavedValue('choose-save-dir') || null);
   }
   var clipboardCheckbox = menu.findChild('#save-to-clipboard')
     .findChild('input')
-    .on('change', function() {
+    .on('change', function () {
       updateExportCheckboxes();
     });
 
   function setDisabled(inputEl, flag) {
     if (!inputEl) return;
     inputEl.node().disabled = !!flag;
-    inputEl.parent().css({color: flag ? '#bbb' : 'black'});
+    inputEl.parent().css({ color: flag ? '#bbb' : 'black' });
   }
 
   function checkboxOn(inputEl) {
@@ -96,7 +97,7 @@ export var ExportControl = function(gui) {
   }
 
   function getSelectedLayerEntries() {
-    return layersArr.reduce(function(memo, o) {
+    return layersArr.reduce(function (memo, o) {
       return o.checkbox.checked ? memo.concat(o.target) : memo;
     }, []);
   }
@@ -112,8 +113,8 @@ export var ExportControl = function(gui) {
     }
     gui.clearMode();
     gui.showProgressMessage('Exporting');
-    setTimeout(function() {
-      exportMenuSelection(targets).catch(function(err) {
+    setTimeout(function () {
+      exportMenuSelection(targets).catch(function (err) {
         if (utils.isString(err)) {
           gui.alert(err);
         } else {
@@ -125,9 +126,61 @@ export var ExportControl = function(gui) {
           }
           gui.alert(msg, 'Export failed');
         }
-      }).finally(function() {
+      }).finally(function () {
         gui.clearProgressMessage();
       });
+    }, 20);
+  }
+
+  function uploadToAWS() {
+    var targets = getExportTargets();
+
+    if (targets.length === 0) {
+      return gui.alert('No layers were selected');
+    }
+
+    gui.clearMode();
+    gui.showProgressMessage('Preparing files for AWS upload...');
+
+    setTimeout(async function () {
+      try {
+        var opts = getExportOpts();
+        opts.format = 'shapefile';
+
+        var files = await internal.exportTargetLayers(model, targets, opts);
+
+        if (files.length > 0) {
+          var layerName = targets[0].layer?.name || 'network_edits';
+          var cleanName = cleanLayerName(layerName);
+
+          // Send each file separately via postMessage
+          files.forEach(file => {
+            let filename = `${cleanName}.${file.filename.split('.').pop()}`;
+            console.log("Sending file:", filename);
+            window.parent.postMessage({
+              type: 'mapshaperFileUpload',
+              content: file.content,
+              filename: filename
+            }, '*');
+          });
+
+        } else {
+          throw new Error('No files were generated for upload.');
+        }
+      } catch (err) {
+        gui.clearProgressMessage();
+        if (utils.isString(err)) {
+          gui.alert(err);
+        } else {
+          console.error(err.stack);
+          var msg = 'AWS upload preparation failed for an unknown reason';
+          if (err.name == 'UserError') {
+            msg = err.message;
+          }
+          gui.alert(msg, 'AWS upload failed');
+        }
+      }
+      gui.clearProgressMessage();
     }, 20);
   }
 
@@ -175,7 +228,7 @@ export var ExportControl = function(gui) {
     box.addEventListener('click', updateToggleBtn);
 
     new ClickText2(el.findChild('.layer-name'))
-      .on('change', function(e) {
+      .on('change', function (e) {
         var str = cleanLayerName(this.value());
         this.value(formatLayerNameForDisplay(str));
         target.layer.name = str;
@@ -196,7 +249,7 @@ export var ExportControl = function(gui) {
     var btn = el.findChild('input').node();
     toggleBtn = btn;
 
-    btn.addEventListener('click', function() {
+    btn.addEventListener('click', function () {
       var state = getSelectionState();
       if (state == 'all') {
         setLayerSelection(false);
@@ -219,7 +272,7 @@ export var ExportControl = function(gui) {
     }
 
     // add layers to menu
-    var objects = layers.map(function(target, i) {
+    var objects = layers.map(function (target, i) {
       var o = initLayerItem(target, i);
       list.appendChild(o.el);
       return o;
@@ -237,7 +290,7 @@ export var ExportControl = function(gui) {
   }
 
   function setLayerSelection(checked) {
-    layersArr.forEach(function(o) {
+    layersArr.forEach(function (o) {
       o.checkbox.checked = !!checked;
     });
   }
@@ -267,7 +320,7 @@ export var ExportControl = function(gui) {
   function getDefaultExportFormat() {
     var dataset = model.getActiveLayer().dataset;
     var inputFmt = dataset.info && dataset.info.input_formats &&
-        dataset.info.input_formats[0];
+      dataset.info.input_formats[0];
     return getExportFormats().includes(inputFmt) ? inputFmt : 'geojson';
   }
 
@@ -279,13 +332,13 @@ export var ExportControl = function(gui) {
   function initFormatMenu() {
     var formats = getExportFormats();
     // var formats = utils.uniq(getExportFormats().concat(getInputFormats()));
-    var items = formats.map(function(fmt) {
+    var items = formats.map(function (fmt) {
       return utils.format('<td><label><input type="radio" name="format" value="%s"' +
         ' class="radio">%s</label></td>', fmt, internal.getFormatName(fmt));
     });
     var table = '<table>';
-    for (var i=0; i<items.length; i+=2) {
-      table += '<tr>' + items[i] + items[i+1] + '<tr>';
+    for (var i = 0; i < items.length; i += 2) {
+      table += '<tr>' + items[i] + items[i + 1] + '<tr>';
     }
     table += '</table>';
 
@@ -321,7 +374,7 @@ export var ExportControl = function(gui) {
   }
 
   function getTargetLayerIds() {
-    return layersArr.reduce(function(memo, o, i) {
+    return layersArr.reduce(function (memo, o, i) {
       if (o.checkbox.checked) memo.push(o.checkbox.value);
       return memo;
     }, []);

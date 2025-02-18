@@ -128,6 +128,16 @@ body.map-view {
 	opacity:  0.5;
 }
 
+.dialog-btn-red {
+	display: inline-block;
+	margin-bottom: 1px;
+	margin-top: 3px;
+	font-size: 13px;
+	color: white;
+	min-width: 28px;
+	background-color: #bb564f;
+}
+
 .colored-text::selection {
 	background-color: #e6f7ff;
 }
