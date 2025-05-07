@@ -6,5 +6,5 @@ mapshaper.manifest = {
     `${baseURL}/mapshaper/data/bendigoNetwork.zip`
   ],
   quick_view: true,
-  commands: ""
+  commands: "-classify field=cycleway save-as=stroke colors='#d3d3d3,#3579b1,#ff7f00,#47a244,#e83034,#904b9b'"
 };

@@ -114,7 +114,7 @@ cmd.classify = function(lyr, dataset, optsArg) {
     values = values.concat().reverse();
   }
   if (valuesAreColors) {
-    message('Colors:', formatValuesForLogging(values));
+    //message('Colors:', formatValuesForLogging(values)); // Supress gui alert upon import
   }
 
   nullValue = getNullValue(opts);

@@ -51,9 +51,9 @@ function getInitialConsoleCommands() {
 
 var startEditing = function() {
   var dataLoaded = false,
-      manifest = getManifest(),
-      importOpts = getImportOpts(manifest),
-      gui = new GuiInstance('body');
+    manifest = getManifest(),
+    importOpts = getImportOpts(manifest),
+    gui = new GuiInstance('body');
 
   // TODO: re-enable the "blurb"
   // if (manifest.blurb) {
@@ -97,6 +97,10 @@ var startEditing = function() {
     El('#mode-buttons').show(); // show Simplify, Console, Export, etc.
     El('#splash-buttons').hide(); // hide Wiki, Github buttons
     El('body').addClass('map-view');
-    gui.console.runInitialCommands(getInitialConsoleCommands());
+    const commands = getInitialConsoleCommands();
+    if (commands) {
+      // Execute commands silently without opening the Console gui
+      gui.console.runMapshaperCommands(commands.trim(), function (err) { });
+    }
   });
 };
