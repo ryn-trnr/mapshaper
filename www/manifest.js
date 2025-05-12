@@ -3,8 +3,8 @@ const baseURL = window.location.origin;
 
 mapshaper.manifest = {
   files: [
-    `${baseURL}/mapshaper/data/bendigoNetwork.zip`
+    `${baseURL}/mapshaper/data/network - links.zip`
   ],
   quick_view: true,
-  commands: "-classify field=cycleway save-as=stroke colors='#d3d3d3,#3579b1,#ff7f00,#47a244,#e83034,#904b9b'"
+  commands: "-classify field=cycleway save-as=stroke colors='#d3d3d3,#2576b8,#43a340,#ff7f00,#06c7b4,#d62f31,#9848a8'"
 };

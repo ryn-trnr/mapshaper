@@ -1162,6 +1162,7 @@ img.close-btn:hover,
 .basemap-styles > div:nth-child(even) {
 	position: relative;
 	margin-left: 10px;
+	margin-right: 10px;
 }
 
 .basemap-style-btn {
