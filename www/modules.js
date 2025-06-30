@@ -467,10 +467,10 @@
 	  buffer[offset + i - d] |= s * 128;
 	}
 
-	var toString$1 = {}.toString;
+	var toString = {}.toString;
 
 	var isArray$1 = Array.isArray || function (arr) {
-	  return toString$1.call(arr) == '[object Array]';
+	  return toString.call(arr) == '[object Array]';
 	};
 
 	/*!
@@ -16789,10 +16789,21 @@
 	    });
 	}
 	function createStore(dbName, storeName) {
-	    const request = indexedDB.open(dbName);
-	    request.onupgradeneeded = () => request.result.createObjectStore(storeName);
-	    const dbp = promisifyRequest(request);
-	    return (txMode, callback) => dbp.then((db) => callback(db.transaction(storeName, txMode).objectStore(storeName)));
+	    let dbp;
+	    const getDB = () => {
+	        if (dbp)
+	            return dbp;
+	        const request = indexedDB.open(dbName);
+	        request.onupgradeneeded = () => request.result.createObjectStore(storeName);
+	        dbp = promisifyRequest(request);
+	        dbp.then((db) => {
+	            // It seems like Safari sometimes likes to just close the connection.
+	            // It's supposed to fire this event when that happens. Let's hope it does!
+	            db.onclose = () => (dbp = undefined);
+	        }, () => { });
+	        return dbp;
+	    };
+	    return (txMode, callback) => getDB().then((db) => callback(db.transaction(storeName, txMode).objectStore(storeName)));
 	}
 	let defaultGetStoreFunc;
 	function defaultGetStore() {
@@ -16982,131 +16993,65 @@
 
 	/**
 	 * @typedef {import('unist').Node} Node
-	 * @typedef {import('unist').Parent} Parent
-	 * @typedef {import('unist').Literal} Literal
-	 * @typedef {Object.<string, unknown>} Props
-	 * @typedef {Array.<Node>|string} ChildrenOrValue
-	 *
-	 * @typedef {(<T extends string, P extends Record<string, unknown>, C extends Node[]>(type: T, props: P, children: C) => {type: T, children: C} & P)} BuildParentWithProps
-	 * @typedef {(<T extends string, P extends Record<string, unknown>>(type: T, props: P, value: string) => {type: T, value: string} & P)} BuildLiteralWithProps
-	 * @typedef {(<T extends string, P extends Record<string, unknown>>(type: T, props: P) => {type: T} & P)} BuildVoidWithProps
-	 * @typedef {(<T extends string, C extends Node[]>(type: T, children: C) => {type: T, children: C})} BuildParent
-	 * @typedef {(<T extends string>(type: T, value: string) => {type: T, value: string})} BuildLiteral
-	 * @typedef {(<T extends string>(type: T) => {type: T})} BuildVoid
-	 */
-
-	var u = /**
-	 * @type {BuildVoid & BuildVoidWithProps & BuildLiteral & BuildLiteralWithProps & BuildParent & BuildParentWithProps}
-	 */ (
-	  /**
-	   * @param {string} type Type of node
-	   * @param {Props|ChildrenOrValue} [props] Additional properties for node (or `children` or `value`)
-	   * @param {ChildrenOrValue} [value] `children` or `value` of node
-	   * @returns {Node}
-	   */
-	  function (type, props, value) {
-	    /** @type {Node} */
-	    var node = {type: String(type)};
-
-	    if (
-	      (value === undefined || value === null) &&
-	      (typeof props === 'string' || Array.isArray(props))
-	    ) {
-	      value = props;
-	    } else {
-	      Object.assign(node, props);
-	    }
-
-	    if (Array.isArray(value)) {
-	      node.children = value;
-	    } else if (value !== undefined && value !== null) {
-	      node.value = String(value);
-	    }
-
-	    return node
-	  }
-	);
-
-	/**
-	 * @typedef {import('xast').Root} Root
-	 * @typedef {import('xast').Element} Element
-	 * @typedef {Root['children'][number]} Child
-	 * @typedef {Child|Root} Node
-	 * @typedef {Root|Element} XResult
-	 * @typedef {string|number|boolean|null|undefined} XValue
-	 * @typedef {{[attribute: string]: XValue}} XAttributes Attributes to support JS primitive types
-	 *
-	 * @typedef {string|number|null|undefined} XPrimitiveChild
-	 * @typedef {Array.<Node|XPrimitiveChild>} XArrayChild
-	 * @typedef {Node|XPrimitiveChild|XArrayChild} XChild
-	 * @typedef {import('./jsx-classic').Element} x.JSX.Element
-	 * @typedef {import('./jsx-classic').IntrinsicAttributes} x.JSX.IntrinsicAttributes
-	 * @typedef {import('./jsx-classic').IntrinsicElements} x.JSX.IntrinsicElements
-	 * @typedef {import('./jsx-classic').ElementChildrenAttribute} x.JSX.ElementChildrenAttribute
 	 */
 
 	/**
-	 * Create XML trees in xast.
+	 * @typedef {Array<Node> | string} ChildrenOrValue
+	 *   List to use as `children` or value to use as `value`.
 	 *
-	 * @param name Qualified name. Case sensitive and can contain a namespace prefix (such as `rdf:RDF`). Pass `null|undefined` to build a root.
-	 * @param attributes Map of attributes. Nullish (null or undefined) or NaN values are ignored, other values (strings, booleans) are cast to strings.
-	 * @param children (Lists of) child nodes. When strings are encountered, they are mapped to Text nodes.
+	 * @typedef {Record<string, unknown>} Props
+	 *   Other fields to add to the node.
 	 */
-	const x =
+
+	/**
+	 * Build a node.
+	 *
+	 * @param type
+	 *   Node type.
+	 * @param props
+	 *   Fields assigned to node.
+	 * @param value
+	 *   Children of node or value of `node` (cast to string).
+	 * @returns
+	 *   Built node.
+	 */
+	const u =
 	  /**
-	   * @type {{
-	   *   (): Root
-	   *   (name: null|undefined, ...children: XChild[]): Root
-	   *   (name: string, attributes: XAttributes, ...children: XChild[]): Element
-	   *   (name: string, ...children: XChild[]): Element
-	   * }}
+	   * @type {(
+	   *   (<T extends string>(type: T) => {type: T}) &
+	   *   (<T extends string, P extends Props>(type: T, props: P) => {type: T} & P) &
+	   *   (<T extends string>(type: T, value: string) => {type: T, value: string}) &
+	   *   (<T extends string, P extends Props>(type: T, props: P, value: string) => {type: T, value: string} & P) &
+	   *   (<T extends string, C extends Array<Node>>(type: T, children: C) => {type: T, children: C}) &
+	   *   (<T extends string, P extends Props, C extends Array<Node>>(type: T, props: P, children: C) => {type: T, children: C} & P)
+	   * )}
 	   */
 	  (
 	    /**
-	     * Hyperscript compatible DSL for creating virtual xast trees.
-	     *
-	     * @param {string|null} [name]
-	     * @param {XAttributes|XChild} [attributes]
-	     * @param {XChild[]} children
-	     * @returns {XResult}
+	     * @param {string} type
+	     * @param {Props | ChildrenOrValue | null | undefined} [props]
+	     * @param {ChildrenOrValue | null | undefined} [value]
+	     * @returns {Node}
 	     */
-	    function (name, attributes, ...children) {
-	      var index = -1;
-	      /** @type {XResult} */
-	      var node;
-	      /** @type {string} */
-	      var key;
+	    function (type, props, value) {
+	      /** @type {Node} */
+	      const node = {type: String(type)};
 
-	      if (name === undefined || name === null) {
-	        node = {type: 'root', children: []};
-	        // @ts-ignore Root builder doesn’t accept attributes.
-	        children.unshift(attributes);
-	      } else if (typeof name === 'string') {
-	        node = {type: 'element', name, attributes: {}, children: []};
-
-	        if (isAttributes(attributes)) {
-	          for (key in attributes) {
-	            // Ignore nullish and NaN values.
-	            if (
-	              attributes[key] !== undefined &&
-	              attributes[key] !== null &&
-	              (typeof attributes[key] !== 'number' ||
-	                !Number.isNaN(attributes[key]))
-	            ) {
-	              // @ts-ignore Pretty sure we just set it.
-	              node.attributes[key] = String(attributes[key]);
-	            }
-	          }
-	        } else {
-	          children.unshift(attributes);
-	        }
+	      if (
+	        (value === undefined || value === null) &&
+	        (typeof props === 'string' || Array.isArray(props))
+	      ) {
+	        value = props;
 	      } else {
-	        throw new TypeError('Expected element name, got `' + name + '`')
+	        Object.assign(node, props);
 	      }
 
-	      // Handle children.
-	      while (++index < children.length) {
-	        addChild(node.children, children[index]);
+	      if (Array.isArray(value)) {
+	        // @ts-expect-error: create a parent.
+	        node.children = value;
+	      } else if (value !== undefined && value !== null) {
+	        // @ts-expect-error: create a literal.
+	        node.value = String(value);
 	      }
 
 	      return node
@@ -17114,88 +17059,29 @@
 	  );
 
 	/**
-	 * @param {Array.<Child>} nodes
-	 * @param {XChild} value
-	 */
-	function addChild(nodes, value) {
-	  var index = -1;
-
-	  if (value === undefined || value === null) ; else if (typeof value === 'string' || typeof value === 'number') {
-	    nodes.push({type: 'text', value: String(value)});
-	  } else if (Array.isArray(value)) {
-	    while (++index < value.length) {
-	      addChild(nodes, value[index]);
-	    }
-	  } else if (typeof value === 'object' && 'type' in value) {
-	    if (value.type === 'root') {
-	      addChild(nodes, value.children);
-	    } else {
-	      nodes.push(value);
-	    }
-	  } else {
-	    throw new TypeError('Expected node, nodes, string, got `' + value + '`')
-	  }
-	}
-
-	/**
-	 * @param {XAttributes|XChild} value
-	 * @returns {value is XAttributes}
-	 */
-	function isAttributes(value) {
-	  if (
-	    value === null ||
-	    value === undefined ||
-	    typeof value !== 'object' ||
-	    Array.isArray(value)
-	  ) {
-	    return false
-	  }
-
-	  return true
-	}
-
-	/**
-	 * @typedef {import('./index.js').Parent} Parent
-	 * @typedef {import('./index.js').Context} Context
-	 * @typedef {import('./index.js').Child} Child
-	 */
-
-	/**
-	 * Serialize all children of `parent`.
-	 *
-	 * @param {Parent} parent
-	 * @param {Context} ctx
-	 * @returns {string}
-	 *
-	 */
-	function all(parent, ctx) {
-	  /** @type {Array.<Child>} */
-	  var children = (parent && parent.children) || [];
-	  var index = -1;
-	  /** @type {Array.<string>} */
-	  var results = [];
-
-	  while (++index < children.length) {
-	    results[index] = one(children[index], ctx);
-	  }
-
-	  return results.join('')
-	}
-
-	/**
-	 * @typedef {Object} CoreOptions
-	 * @property {string[]} [subset=[]]
+	 * @typedef CoreOptions
+	 * @property {ReadonlyArray<string>} [subset=[]]
 	 *   Whether to only escape the given subset of characters.
 	 * @property {boolean} [escapeOnly=false]
 	 *   Whether to only escape possibly dangerous characters.
 	 *   Those characters are `"`, `&`, `'`, `<`, `>`, and `` ` ``.
 	 *
-	 * @typedef {Object} FormatOptions
+	 * @typedef FormatOptions
 	 * @property {(code: number, next: number, options: CoreWithFormatOptions) => string} format
 	 *   Format strategy.
 	 *
 	 * @typedef {CoreOptions & FormatOptions & import('./util/format-smart.js').FormatSmartOptions} CoreWithFormatOptions
 	 */
+
+	const defaultSubsetRegex = /["&'<>`]/g;
+	const surrogatePairsRegex = /[\uD800-\uDBFF][\uDC00-\uDFFF]/g;
+	const controlCharactersRegex =
+	  // eslint-disable-next-line no-control-regex, unicorn/no-hex-escape
+	  /[\x01-\t\v\f\x0E-\x1F\x7F\x81\x8D\x8F\x90\x9D\xA0-\uFFFF]/g;
+	const regexEscapeRegex = /[|\\{}()[\]^$+*?.]/g;
+
+	/** @type {WeakMap<ReadonlyArray<string>, RegExp>} */
+	const subsetToRegexCache = new WeakMap();
 
 	/**
 	 * Encode certain characters in `value`.
@@ -17206,7 +17092,9 @@
 	 */
 	function core(value, options) {
 	  value = value.replace(
-	    options.subset ? charactersToExpression(options.subset) : /["&'<>`]/g,
+	    options.subset
+	      ? charactersToExpressionCached(options.subset)
+	      : defaultSubsetRegex,
 	    basic
 	  );
 
@@ -17217,14 +17105,10 @@
 	  return (
 	    value
 	      // Surrogate pairs.
-	      .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, surrogate)
+	      .replace(surrogatePairsRegex, surrogate)
 	      // BMP control characters (C0 except for LF, CR, SP; DEL; and some more
 	      // non-ASCII ones).
-	      .replace(
-	        // eslint-disable-next-line no-control-regex, unicorn/no-hex-escape
-	        /[\x01-\t\v\f\x0E-\x1F\x7F\x81\x8D\x8F\x90\x9D\xA0-\uFFFF]/g,
-	        basic
-	      )
+	      .replace(controlCharactersRegex, basic)
 	  )
 
 	  /**
@@ -17258,16 +17142,35 @@
 	}
 
 	/**
-	 * @param {string[]} subset
+	 * A wrapper function that caches the result of `charactersToExpression` with a WeakMap.
+	 * This can improve performance when tooling calls `charactersToExpression` repeatedly
+	 * with the same subset.
+	 *
+	 * @param {ReadonlyArray<string>} subset
+	 * @returns {RegExp}
+	 */
+	function charactersToExpressionCached(subset) {
+	  let cached = subsetToRegexCache.get(subset);
+
+	  if (!cached) {
+	    cached = charactersToExpression(subset);
+	    subsetToRegexCache.set(subset, cached);
+	  }
+
+	  return cached
+	}
+
+	/**
+	 * @param {ReadonlyArray<string>} subset
 	 * @returns {RegExp}
 	 */
 	function charactersToExpression(subset) {
-	  /** @type {string[]} */
+	  /** @type {Array<string>} */
 	  const groups = [];
 	  let index = -1;
 
 	  while (++index < subset.length) {
-	    groups.push(subset[index].replace(/[|\\{}()[\]^$+*?.]/g, '\\$&'));
+	    groups.push(subset[index].replace(regexEscapeRegex, '\\$&'));
 	  }
 
 	  return new RegExp('(?:' + groups.join('|') + ')', 'g')
@@ -17288,6 +17191,7 @@
 	 * @typedef {import('./core.js').CoreOptions} LightOptions
 	 */
 
+
 	/**
 	 * Encode special characters in `value` as hexadecimals.
 	 *
@@ -17302,45 +17206,60 @@
 	  return core(value, Object.assign({format: formatBasic}, options))
 	}
 
-	var noncharacter = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g;
+	// eslint-disable-next-line no-control-regex
+	const noncharacter = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g;
 
 	/**
 	 * Escape a string.
 	 *
 	 * @param {string} value
-	 * @param {Array.<string>} subset
-	 * @param {RegExp} [unsafe]
+	 *   Raw string.
+	 * @param {Array<string>} subset
+	 *   Characters to escape.
+	 * @param {RegExp | null | undefined} [unsafe]
+	 *   Regex to scope `subset` to.
 	 * @returns {string}
+	 *   Escaped string.
 	 */
 	function escape(value, subset, unsafe) {
-	  var result = clean(value);
+	  const result = clean(value);
 
 	  return unsafe ? result.replace(unsafe, encode) : encode(result)
 
 	  /**
-	   * @param {string} $0
+	   * Actually escape characters.
+	   *
+	   * @param {string} value
+	   *   Raw value.
 	   * @returns {string}
+	   *   Copy of `value`, escaped.
 	   */
-	  function encode($0) {
-	    return stringifyEntitiesLight($0, {subset})
+	  function encode(value) {
+	    return stringifyEntitiesLight(value, {subset})
 	  }
 	}
 
 	/**
+	 * Remove non-characters.
+	 *
 	 * @param {string} value
+	 *   Raw value.
 	 * @returns {string}
+	 *   Copy of `value` with non-characters removed.
 	 */
 	function clean(value) {
 	  return String(value || '').replace(noncharacter, '')
 	}
 
-	var subset$3 = ['\t', '\n', ' ', '"', '&', "'", '/', '<', '=', '>'];
+	const subset$3 = ['\t', '\n', ' ', '"', '&', "'", '/', '<', '=', '>'];
 
 	/**
-	 * Serialize a node name.
+	 * Encode a node name.
 	 *
 	 * @param {string} value
+	 *   Raw name.
 	 * @returns {string}
+	 *   Escaped name.
 	 */
 	function name(value) {
 	  return escape(value, subset$3)
@@ -17375,61 +17294,69 @@
 	}
 
 	/**
-	 * @typedef {import('./index.js').Context} Context
+	 * @typedef {import('./index.js').State} State
 	 */
+
 
 	/**
 	 * Serialize an attribute value.
 	 *
 	 * @param {string} value
-	 * @param {Context} ctx
+	 *   Raw attribute value.
+	 * @param {State} state
+	 *   Info passed around about the current state.
 	 * @returns {string}
+	 *   Serialized attribute value.
 	 */
-	function value(value, ctx) {
-	  var primary = ctx.quote;
-	  var secondary = ctx.alternative;
-	  var result = String(value);
-	  var quote =
-	    secondary && ccount(result, primary) > ccount(result, secondary)
-	      ? secondary
-	      : primary;
+	function value(value, state) {
+	  const result = String(value);
+	  let quote = state.options.quote || '"';
+
+	  if (state.options.quoteSmart) {
+	    const other = quote === '"' ? "'" : '"';
+
+	    if (ccount(result, quote) > ccount(result, other)) {
+	      quote = other;
+	    }
+	  }
 
 	  return quote + escape(result, ['<', '&', quote]) + quote
 	}
 
 	/**
-	 * @typedef {import('./index.js').Handle} Handle
-	 * @typedef {import('./index.js').Element} Element
-	 * @typedef {import('./index.js').Attributes} Attributes
+	 * @typedef {import('xast').Element} Element
+	 * @typedef {import('./index.js').State} State
 	 */
 
-	var own$1 = {}.hasOwnProperty;
+
+	const own$1 = {}.hasOwnProperty;
 
 	/**
 	 * Serialize an element.
 	 *
-	 * @type {Handle}
 	 * @param {Element} node
+	 *   xast element node.
+	 * @param {State} state
+	 *   Info passed around about the current state.
+	 * @returns {string}
+	 *   Serialized XML.
 	 */
-	function element(node, ctx) {
-	  var nodeName = name(node.name);
-	  var content = all(node, ctx);
-	  /** @type {Attributes} */
-	  var attributes = node.attributes || {};
-	  var close = content ? false : ctx.close;
-	  /** @type {Array.<string>} */
-	  var attrs = [];
+	function element(node, state) {
+	  const nodeName = name(node.name);
+	  const content = all(node, state);
+	  const attributes = node.attributes || {};
+	  const close = content ? false : state.options.closeEmptyElements;
+	  /** @type {Array<string>} */
+	  const attrs = [];
 	  /** @type {string} */
-	  var key;
-	  /** @type {Attributes[keyof Attributes]} */
-	  var result;
+	  let key;
 
 	  for (key in attributes) {
 	    if (own$1.call(attributes, key)) {
-	      result = attributes[key];
+	      const result = attributes[key];
 
 	      if (result !== null && result !== undefined) {
-	        attrs.push(name(key) + '=' + value(result, ctx));
+	        attrs.push(name(key) + '=' + value(result, state));
 	      }
 	    }
 	  }
@@ -17438,7 +17365,7 @@
 	    '<' +
 	    nodeName +
 	    (attrs.length === 0 ? '' : ' ' + attrs.join(' ')) +
-	    (close ? (ctx.tight ? '' : ' ') + '/' : '') +
+	    (close ? (state.options.tightClose ? '' : ' ') + '/' : '') +
 	    '>' +
 	    content +
 	    (close ? '' : '</' + nodeName + '>')
@@ -17446,132 +17373,154 @@
 	}
 
 	/**
-	 * @typedef {import('./index.js').Handle} Handle
-	 * @typedef {import('./index.js').Text} Text
+	 * @typedef {import('xast').Text} Text
+	 * @typedef {import('./index.js').Raw} Raw
 	 */
 
-	var subset$2 = ['&', '<'];
+
+	const subset$2 = ['&', '<'];
 
 	/**
 	 * Serialize a text.
 	 *
-	 * @type {Handle}
-	 * @param {Text} node
+	 * @param {Text | Raw} node
+	 *   xast text node (or raw).
+	 * @returns {string}
+	 *   Serialized XML.
 	 */
 	function text(node) {
 	  return escape(node.value, subset$2)
 	}
 
 	/**
-	 * @typedef {import('./index.js').Handle} Handle
-	 * @typedef {import('./index.js').Comment} Comment
+	 * @typedef {import('xast').Comment} Comment
 	 */
+
 
 	/**
 	 * Serialize a comment.
 	 *
-	 * @type {Handle}
 	 * @param {Comment} node
+	 *   xast comment node.
+	 * @returns {string}
+	 *   Serialized XML.
 	 */
 	function comment(node) {
 	  return '<!--' + escape(node.value, ['-']) + '-->'
 	}
 
 	/**
-	 * @typedef {import('./index.js').Handle} Handle
-	 * @typedef {import('./index.js').Doctype} Doctype
+	 * @typedef {import('xast').Doctype} Doctype
+	 * @typedef {import('./index.js').State} State
 	 */
+
 
 	/**
 	 * Serialize a doctype.
 	 *
-	 * @type {Handle}
 	 * @param {Doctype} node
+	 *   xast doctype node.
+	 * @param {State} state
+	 *   Info passed around about the current state.
+	 * @returns {string}
+	 *   Serialized XML.
 	 */
-	function doctype(node, ctx) {
-	  var nodeName = name(node.name);
-	  var pub = node.public;
-	  var sys = node.system;
-	  var result = '<!DOCTYPE';
+	function doctype(node, state) {
+	  const nodeName = name(node.name);
+	  const pub = node.public;
+	  const sys = node.system;
+	  let result = '<!DOCTYPE';
 
 	  if (nodeName !== '') {
 	    result += ' ' + nodeName;
 	  }
 
-	  if (pub !== null && pub !== undefined && pub !== '') {
-	    result += ' PUBLIC ' + value(pub, ctx);
-	  } else if (sys !== null && sys !== undefined && sys !== '') {
+	  if (pub) {
+	    result += ' PUBLIC ' + value(pub, state);
+	  } else if (sys) {
 	    result += ' SYSTEM';
 	  }
 
-	  if (sys !== null && sys !== undefined && sys !== '') {
-	    result += ' ' + value(sys, ctx);
+	  if (sys) {
+	    result += ' ' + value(sys, state);
 	  }
 
 	  return result + '>'
 	}
 
 	/**
-	 * @typedef {import('./index.js').Handle} Handle
-	 * @typedef {import('./index.js').Instruction} Instruction
+	 * @typedef {import('xast').Instruction} Instruction
 	 */
 
-	var unsafe$1 = /\?>/g;
-	var subset$1 = ['>'];
+
+	const unsafe$1 = /\?>/g;
+	const subset$1 = ['>'];
 
 	/**
 	 * Serialize an instruction.
 	 *
-	 * @type {Handle}
 	 * @param {Instruction} node
+	 *   xast instruction node.
+	 * @returns {string}
+	 *   Serialized XML.
 	 */
 	function instruction(node) {
-	  var nodeName = name(node.name) || 'x';
-	  var result = escape(node.value, subset$1, unsafe$1);
+	  const nodeName = name(node.name) || 'x';
+	  const result = escape(node.value, subset$1, unsafe$1);
 	  return '<?' + nodeName + (result ? ' ' + result : '') + '?>'
 	}
 
 	/**
-	 * @typedef {import('./index.js').Handle} Handle
-	 * @typedef {import('./index.js').Cdata} Cdata
+	 * @typedef {import('xast').Cdata} Cdata
 	 */
 
-	var unsafe = /]]>/g;
-	var subset = ['>'];
+
+	const unsafe = /]]>/g;
+	const subset = ['>'];
 
 	/**
 	 * Serialize a CDATA section.
 	 *
-	 * @type {Handle}
 	 * @param {Cdata} node
+	 *   xast cdata node.
+	 * @returns {string}
+	 *   Serialized XML.
 	 */
 	function cdata(node) {
 	  return '<![CDATA[' + escape(node.value, subset, unsafe) + ']]>'
 	}
 
 	/**
-	 * @typedef {import('./index.js').Handle} Handle
 	 * @typedef {import('./index.js').Raw} Raw
+	 * @typedef {import('./index.js').State} State
 	 */
+
 
 	/**
 	 * Serialize a (non-standard) raw.
 	 *
-	 * @type {Handle}
 	 * @param {Raw} node
+	 *   xast raw node.
+	 * @param {State} state
+	 *   Info passed around about the current state.
+	 * @returns {string}
+	 *   Serialized XML.
 	 */
-	function raw(node, ctx) {
-	  // @ts-ignore Looks like a text.
-	  return ctx.dangerous ? node.value : text(node)
+	function raw(node, state) {
+	  return state.options.allowDangerousXml ? node.value : text(node)
 	}
 
 	/**
-	 * @typedef {import('./index.js').Handle} Handle
+	 * @typedef {import('unist').Parent} UnistParent
+	 * @typedef {import('xast').Root} Root
+	 * @typedef {import('xast').RootChildMap} RootChildMap
+	 * @typedef {import('./index.js').State} State
 	 */
 
-	var own = {}.hasOwnProperty;
 
-	var handlers = {
+	const own = {}.hasOwnProperty;
+
+	const handlers = {
 	  root: all,
 	  element,
 	  text,
@@ -17585,10 +17534,15 @@
 	/**
 	 * Serialize a node.
 	 *
-	 * @type {Handle}
+	 * @param {Node} node
+	 *   xast node.
+	 * @param {State} state
+	 *   Info passed around about the current state.
+	 * @returns {string}
+	 *   Serialized XML.
 	 */
-	function one(node, ctx) {
-	  var type = node && node.type;
+	function one(node, state) {
+	  const type = node && node.type;
 
 	  if (!type) {
 	    throw new Error('Expected node, not `' + node + '`')
@@ -17598,84 +17552,236 @@
 	    throw new Error('Cannot compile unknown node `' + type + '`')
 	  }
 
-	  // @ts-ignore Hush, it works.
-	  return handlers[type](node, ctx)
+	  const handle = handlers[type];
+	  // @ts-expect-error hush, node matches `type`.
+	  const result = handle(node, state);
+
+	  return result
+	}
+
+	/**
+	 * Serialize all children of `parent`.
+	 *
+	 * @param {Parent} parent
+	 *   xast parent node.
+	 * @param {State} state
+	 *   Info passed around about the current state.
+	 * @returns {string}
+	 *   Serialized XML.
+	 */
+	function all(parent, state) {
+	  /** @type {Array<Child>} */
+	  const children = (parent && parent.children) || [];
+	  let index = -1;
+	  /** @type {Array<string>} */
+	  const results = [];
+
+	  while (++index < children.length) {
+	    results[index] = one(children[index], state);
+	  }
+
+	  return results.join('')
+	}
+
+	/**
+	 * @typedef {import('xast').Literal} Literal
+	 * @typedef {import('xast').Root} Root
+	 * @typedef {import('xast').RootChildMap} RootChildMap
+	 */
+
+
+	/**
+	 * Serialize a xast tree to XML.
+	 *
+	 * @param {Node | Array<Node>} tree
+	 *   xast node(s) to serialize.
+	 * @param {Options | null | undefined} [options]
+	 *   Configuration.
+	 * @returns {string}
+	 *   Serialized XML.
+	 */
+	function toXml(tree, options) {
+	  /** @type {State} */
+	  const state = {options: {}};
+
+	  // Make sure the quote is valid.
+	  if (
+	    typeof state.options.quote === 'string' &&
+	    state.options.quote !== '"' &&
+	    state.options.quote !== "'"
+	  ) {
+	    throw new Error(
+	      'Invalid quote `' + state.options.quote + '`, expected `\'` or `"`'
+	    )
+	  }
+
+	  /** @type {Node} */
+	  // @ts-expect-error Assume no `root` in `node`.
+	  const node = Array.isArray(tree) ? {type: 'root', children: tree} : tree;
+
+	  return one(node, state)
 	}
 
 	/**
 	 * @typedef {import('xast').Root} Root
 	 * @typedef {import('xast').Element} Element
-	 * @typedef {import('xast').Cdata} Cdata
-	 * @typedef {import('xast').Comment} Comment
-	 * @typedef {import('xast').Doctype} Doctype
-	 * @typedef {import('xast').Instruction} Instruction
-	 * @typedef {import('xast').Text} Text
-	 * @typedef {import('xast').Literal & {type: 'raw'}} Raw
-	 * @typedef {Root|Element} Parent
-	 * @typedef {import('xast').Attributes} Attributes
-	 * @typedef {Root['children'][number]} Child
-	 * @typedef {Child|Root} Node
-	 *
-	 * @typedef {'"'|"'"} Quote
-	 *
-	 * @typedef Options
-	 * @property {Quote} [quote='"'] Preferred quote to use
-	 * @property {boolean} [quoteSmart=false] Use the other quote if that results in
-	 *   less bytes
-	 * @property {boolean} [closeEmptyElements=false] Close elements without any
-	 *   content with slash (/) on the opening tag instead of an end tag:
-	 *   `<circle />` instead of `<circle></circle>`.
-	 *   See `tightClose` to control whether a space is used before the slash.
-	 * @property {boolean} [tightClose=false] Do not use an extra space when closing
-	 *    self-closing elements: `<circle/>` instead of `<circle />`.
-	 * @property {boolean} [allowDangerousXml=false] Allow `raw` nodes and insert
-	 *   them as raw XML. When falsey, encodes `raw` nodes.
-	 *   Only set this if you completely trust the content!
-	 *
-	 * @typedef Context
-	 * @property {Quote} quote
-	 * @property {Quote} alternative
-	 * @property {boolean} close
-	 * @property {boolean} tight
-	 * @property {boolean} dangerous
-	 *
-	 * @callback Handle
-	 * @param {Node} node
-	 * @param {Context} context
-	 * @returns {string}
 	 */
 
 	/**
-	 * Serialize the given xast tree (or list of nodes).
+	 * @typedef {Root['children'][number]} Content
+	 * @typedef {Content | Root} Node
+	 *   Any concrete `xast` node.
 	 *
-	 * @param {Node|Array.<Node>} node
-	 * @param {Options} [options]
-	 * @returns {string}
+	 * @typedef {Root | Element} Result
+	 *   Result from a `x` call.
+	 *
+	 * @typedef {string | number | boolean | null | undefined} Value
+	 *   Attribute value
+	 * @typedef {{[attribute: string]: Value}} Attributes
+	 *   Acceptable value for element properties.
+	 *
+	 * @typedef {string | number | null | undefined} PrimitiveChild
+	 *   Primitive children, either ignored (nullish), or turned into text nodes.
+	 * @typedef {Array<Node | PrimitiveChild>} ArrayChild
+	 *   List of children.
+	 * @typedef {Node | PrimitiveChild | ArrayChild} Child
+	 *   Acceptable child value.
+	 *
+	 * @typedef {import('./jsx-classic.js').Element} x.JSX.Element
+	 * @typedef {import('./jsx-classic.js').IntrinsicAttributes} x.JSX.IntrinsicAttributes
+	 * @typedef {import('./jsx-classic.js').IntrinsicElements} x.JSX.IntrinsicElements
+	 * @typedef {import('./jsx-classic.js').ElementChildrenAttribute} x.JSX.ElementChildrenAttribute
 	 */
-	function toXml(node, options = {}) {
-	  var quote = options.quote || '"';
-	  /** @type {Quote} */
-	  var alternative = quote === '"' ? "'" : '"';
-	  var smart = options.quoteSmart;
-	  /** @type {Node} */
-	  // @ts-ignore Assume no `root` in `node`.
-	  var value = Array.isArray(node) ? {type: 'root', children: node} : node;
 
-	  if (quote !== '"' && quote !== "'") {
-	    throw new Error('Invalid quote `' + quote + '`, expected `\'` or `"`')
+	/**
+	 * Create XML trees in xast.
+	 *
+	 * @param name
+	 *   Qualified name.
+	 *
+	 *   Case sensitive and can contain a namespace prefix (such as `rdf:RDF`).
+	 *   When string, an `Element` is built.
+	 *   When nullish, a `Root` is built instead.
+	 * @param attributes
+	 *   Attributes of the element.
+	 * @param children
+	 *   Children of the node.
+	 * @returns
+	 *   `Element` or `Root`.
+	 */
+	const x =
+	  /**
+	   * @type {{
+	   *   (): Root
+	   *   (name: null | undefined, ...children: Array<Child>): Root
+	   *   (name: string, attributes?: Attributes, ...children: Array<Child>): Element
+	   *   (name: string, ...children: Array<Child>): Element
+	   * }}
+	   */
+	  (
+	    /**
+	     * @param {string | null | undefined} [name]
+	     * @param {Attributes | Child | null | undefined} [attributes]
+	     * @param {Array<Child>} children
+	     * @returns {Result}
+	     */
+	    function (name, attributes, ...children) {
+	      let index = -1;
+	      /** @type {Result} */
+	      let node;
+
+	      if (name === undefined || name === null) {
+	        node = {type: 'root', children: []};
+	        // @ts-expect-error Root builder doesn’t accept attributes.
+	        children.unshift(attributes);
+	      } else if (typeof name === 'string') {
+	        node = {type: 'element', name, attributes: {}, children: []};
+
+	        if (isAttributes(attributes)) {
+	          /** @type {string} */
+	          let key;
+
+	          for (key in attributes) {
+	            // Ignore nullish and NaN values.
+	            if (
+	              attributes[key] !== undefined &&
+	              attributes[key] !== null &&
+	              (typeof attributes[key] !== 'number' ||
+	                !Number.isNaN(attributes[key]))
+	            ) {
+	              // @ts-expect-error Pretty sure we just set it.
+	              node.attributes[key] = String(attributes[key]);
+	            }
+	          }
+	        } else {
+	          children.unshift(attributes);
+	        }
+	      } else {
+	        throw new TypeError('Expected element name, got `' + name + '`')
+	      }
+
+	      // Handle children.
+	      while (++index < children.length) {
+	        addChild(node.children, children[index]);
+	      }
+
+	      return node
+	    }
+	  );
+
+	/**
+	 * Add children.
+	 *
+	 * @param {Array<Child>} nodes
+	 *   List of nodes.
+	 * @param {Child} value
+	 *   Child.
+	 * @returns {void}
+	 *   Nothing.
+	 */
+	function addChild(nodes, value) {
+	  let index = -1;
+
+	  if (value === undefined || value === null) ; else if (typeof value === 'string' || typeof value === 'number') {
+	    nodes.push({type: 'text', value: String(value)});
+	  } else if (Array.isArray(value)) {
+	    while (++index < value.length) {
+	      addChild(nodes, value[index]);
+	    }
+	  } else if (typeof value === 'object' && 'type' in value) {
+	    if (value.type === 'root') {
+	      addChild(nodes, value.children);
+	    } else {
+	      nodes.push(value);
+	    }
+	  } else {
+	    throw new TypeError('Expected node, nodes, string, got `' + value + '`')
 	  }
-
-	  return one(value, {
-	    dangerous: options.allowDangerousXml,
-	    close: options.closeEmptyElements,
-	    tight: options.tightClose,
-	    quote,
-	    alternative: smart ? alternative : null
-	  })
 	}
 
-	const BR = u('text', '\n');
-	const TAB = u('text', '  ');
+	/**
+	 * Check if `value` is `Attributes`.
+	 *
+	 * @param {Attributes | Child} value
+	 *   Value.
+	 * @returns {value is Attributes}
+	 *   Whether `value` is `Attributes`.
+	 */
+	function isAttributes(value) {
+	  if (
+	    value === null ||
+	    value === undefined ||
+	    typeof value !== 'object' ||
+	    Array.isArray(value)
+	  ) {
+	    return false
+	  }
+
+	  return true
+	}
+
+	const BR = u("text", "\n");
+	const TAB = u("text", "  ");
 	/**
 	 * Convert nested folder structure to KML. This expects
 	 * input that follows the same patterns as [toGeoJSON](https://github.com/placemark/togeojson)'s
@@ -17683,8 +17789,8 @@
 	 * starting with a root element.
 	 */
 	function foldersToKML(root) {
-	    return toXml(u('root', [
-	        x('kml', { xmlns: 'http://www.opengis.net/kml/2.2' }, x('Document', root.children.flatMap((child) => convertChild(child)))),
+	    return toXml(u("root", [
+	        x("kml", { xmlns: "http://www.opengis.net/kml/2.2" }, x("Document", root.children.flatMap((child) => convertChild(child)))),
 	    ]));
 	}
 	/**
@@ -17692,27 +17798,27 @@
 	 * KML data.
 	 */
 	function toKML(featureCollection) {
-	    return toXml(u('root', [
-	        x('kml', { xmlns: 'http://www.opengis.net/kml/2.2' }, x('Document', featureCollection.features.flatMap((feature) => convertFeature(feature)))),
+	    return toXml(u("root", [
+	        x("kml", { xmlns: "http://www.opengis.net/kml/2.2" }, x("Document", featureCollection.features.flatMap((feature) => convertFeature(feature)))),
 	    ]));
 	}
 	function convertChild(child) {
 	    switch (child.type) {
-	        case 'Feature':
+	        case "Feature":
 	            return convertFeature(child);
-	        case 'folder':
+	        case "folder":
 	            return convertFolder(child);
 	    }
 	}
 	function convertFolder(folder) {
-	    const id = ['string', 'number'].includes(typeof folder.meta.id)
+	    const id = ["string", "number"].includes(typeof folder.meta.id)
 	        ? {
 	            id: String(folder.meta.id),
 	        }
 	        : {};
 	    return [
 	        BR,
-	        x('Folder', id, [
+	        x("Folder", id, [
 	            BR,
 	            ...folderMeta(folder.meta),
 	            BR,
@@ -17722,28 +17828,28 @@
 	    ];
 	}
 	const META_PROPERTIES = [
-	    'address',
-	    'description',
-	    'name',
-	    'open',
-	    'visibility',
-	    'phoneNumber',
+	    "address",
+	    "description",
+	    "name",
+	    "open",
+	    "visibility",
+	    "phoneNumber",
 	];
 	function folderMeta(meta) {
 	    return META_PROPERTIES.filter((p) => meta[p] !== undefined).map((p) => {
-	        return x(p, [u('text', String(meta[p]))]);
+	        return x(p, [u("text", String(meta[p]))]);
 	    });
 	}
 	function convertFeature(feature) {
 	    const { id } = feature;
-	    const idMember = ['string', 'number'].includes(typeof id)
+	    const idMember = ["string", "number"].includes(typeof id)
 	        ? {
 	            id: id,
 	        }
 	        : {};
 	    return [
 	        BR,
-	        x('Placemark', idMember, [
+	        x("Placemark", idMember, [
 	            BR,
 	            ...propertiesToTags(feature.properties),
 	            BR,
@@ -17756,117 +17862,117 @@
 	    return `${position[0]},${position[1]}`;
 	}
 	function coord1$1(coordinates) {
-	    return x('coordinates', [u('text', join$1(coordinates))]);
+	    return x("coordinates", [u("text", join$1(coordinates))]);
 	}
 	function coord2(coordinates) {
-	    return x('coordinates', [u('text', coordinates.map(join$1).join('\n'))]);
+	    return x("coordinates", [u("text", coordinates.map(join$1).join("\n"))]);
 	}
-	function toString(value) {
+	function valueToString(value) {
 	    switch (typeof value) {
-	        case 'string': {
+	        case "string": {
 	            return value;
 	        }
-	        case 'boolean':
-	        case 'number': {
+	        case "boolean":
+	        case "number": {
 	            return String(value);
 	        }
-	        case 'object': {
+	        case "object": {
 	            try {
 	                return JSON.stringify(value);
 	            }
 	            catch (e) {
-	                return '';
+	                return "";
 	            }
 	        }
 	    }
-	    return '';
+	    return "";
 	}
 	function maybeCData(value) {
 	    if (value &&
-	        typeof value === 'object' &&
-	        '@type' in value &&
-	        value['@type'] === 'html' &&
-	        'value' in value &&
-	        typeof value.value === 'string') {
-	        return u('cdata', value.value);
+	        typeof value === "object" &&
+	        "@type" in value &&
+	        value["@type"] === "html" &&
+	        "value" in value &&
+	        typeof value.value === "string") {
+	        return u("cdata", value.value);
 	    }
-	    return toString(value);
+	    return valueToString(value);
 	}
 	function propertiesToTags(properties) {
 	    if (!properties)
 	        return [];
 	    const { name, description, visibility, ...otherProperties } = properties;
 	    return [
-	        name && x('name', [u('text', toString(name))]),
-	        description && x('description', [u('text', maybeCData(description))]),
+	        name && x("name", [u("text", valueToString(name))]),
+	        description && x("description", [u("text", maybeCData(description))]),
 	        visibility !== undefined &&
-	            x('visibility', [u('text', visibility ? '1' : '0')]),
-	        x('ExtendedData', Object.entries(otherProperties).flatMap(([name, value]) => [
+	            x("visibility", [u("text", visibility ? "1" : "0")]),
+	        x("ExtendedData", Object.entries(otherProperties).flatMap(([name, value]) => [
 	            BR,
 	            TAB,
-	            x('Data', { name: name }, [
-	                x('value', [
-	                    u('text', typeof value === 'string' ? value : JSON.stringify(value)),
+	            x("Data", { name: name }, [
+	                x("value", [
+	                    u("text", typeof value === "string" ? value : JSON.stringify(value)),
 	                ]),
 	            ]),
 	        ])),
 	    ].filter(Boolean);
 	}
-	const linearRing = (ring) => x('LinearRing', [coord2(ring)]);
+	const linearRing = (ring) => x("LinearRing", [coord2(ring)]);
 	function convertMultiPoint(geometry) {
-	    return x('MultiGeometry', geometry.coordinates.flatMap((coordinates) => [
+	    return x("MultiGeometry", geometry.coordinates.flatMap((coordinates) => [
 	        BR,
 	        convertGeometry({
-	            type: 'Point',
+	            type: "Point",
 	            coordinates,
 	        }),
 	    ]));
 	}
 	function convertMultiLineString(geometry) {
-	    return x('MultiGeometry', geometry.coordinates.flatMap((coordinates) => [
+	    return x("MultiGeometry", geometry.coordinates.flatMap((coordinates) => [
 	        BR,
 	        convertGeometry({
-	            type: 'LineString',
+	            type: "LineString",
 	            coordinates,
 	        }),
 	    ]));
 	}
 	function convertMultiPolygon(geometry) {
-	    return x('MultiGeometry', geometry.coordinates.flatMap((coordinates) => [
+	    return x("MultiGeometry", geometry.coordinates.flatMap((coordinates) => [
 	        BR,
 	        convertGeometry({
-	            type: 'Polygon',
+	            type: "Polygon",
 	            coordinates,
 	        }),
 	    ]));
 	}
 	function convertPolygon(geometry) {
 	    const [outerBoundary, ...innerRings] = geometry.coordinates;
-	    return x('Polygon', [
+	    return x("Polygon", [
 	        BR,
-	        x('outerBoundaryIs', [BR, TAB, linearRing(outerBoundary)]),
+	        x("outerBoundaryIs", [BR, TAB, linearRing(outerBoundary)]),
 	        ...innerRings.flatMap((innerRing) => [
 	            BR,
-	            x('innerBoundaryIs', [BR, TAB, linearRing(innerRing)]),
+	            x("innerBoundaryIs", [BR, TAB, linearRing(innerRing)]),
 	        ]),
 	    ]);
 	}
 	function convertGeometry(geometry) {
 	    switch (geometry.type) {
-	        case 'Point':
-	            return x('Point', [coord1$1(geometry.coordinates)]);
-	        case 'MultiPoint':
+	        case "Point":
+	            return x("Point", [coord1$1(geometry.coordinates)]);
+	        case "MultiPoint":
 	            return convertMultiPoint(geometry);
-	        case 'LineString':
-	            return x('LineString', [coord2(geometry.coordinates)]);
-	        case 'MultiLineString':
+	        case "LineString":
+	            return x("LineString", [coord2(geometry.coordinates)]);
+	        case "MultiLineString":
 	            return convertMultiLineString(geometry);
-	        case 'Polygon':
+	        case "Polygon":
 	            return convertPolygon(geometry);
-	        case 'MultiPolygon':
+	        case "MultiPolygon":
 	            return convertMultiPolygon(geometry);
-	        case 'GeometryCollection':
-	            return x('MultiGeometry', geometry.geometries.flatMap((geometry) => [
+	        case "GeometryCollection":
+	            return x("MultiGeometry", geometry.geometries.flatMap((geometry) => [
 	                BR,
 	                convertGeometry(geometry),
 	            ]));
@@ -17934,7 +18040,7 @@
 	    const val = parseFloat(nodeVal(get1(node, tagName)));
 	    if (isNaN(val))
 	        return undefined;
-	    if (val && callback)
+	    if (callback)
 	        callback(val);
 	    return val;
 	}
@@ -18676,11 +18782,15 @@
 	                geometries,
 	            };
 	}
-	function getPlacemark(node, styleMap, schema) {
+	function getPlacemark(node, styleMap, schema, options) {
 	    const { coordTimes, geometries } = getGeometry(node);
+	    const geometry = geometryListToGeometry(geometries);
+	    if (!geometry && options.skipNullGeometry) {
+	        return null;
+	    }
 	    const feature = {
 	        type: "Feature",
-	        geometry: geometryListToGeometry(geometries),
+	        geometry,
 	        properties: Object.assign(getMulti(node, [
 	            "name",
 	            "address",
@@ -18710,8 +18820,10 @@
 	    if (latLonQuad) {
 	        const ring = fixRing(coord(getCoordinates(node)));
 	        return {
-	            type: "Polygon",
-	            coordinates: [ring],
+	            geometry: {
+	                type: "Polygon",
+	                coordinates: [ring],
+	            },
 	        };
 	    }
 	    return getLatLonBox(node);
@@ -18724,7 +18836,7 @@
 	            const dy = coordinate[1] - center[1];
 	            const dx = coordinate[0] - center[0];
 	            const distance = Math.sqrt(Math.pow(dy, 2) + Math.pow(dx, 2));
-	            const angle = Math.atan2(dy, dx) - rotation * DEGREES_TO_RADIANS;
+	            const angle = Math.atan2(dy, dx) + rotation * DEGREES_TO_RADIANS;
 	            return [
 	                center[0] + Math.cos(angle) * distance,
 	                center[1] + Math.sin(angle) * distance,
@@ -18758,15 +18870,22 @@
 	                coordinates = rotateBox(bbox, coordinates, rotation);
 	            }
 	            return {
-	                type: "Polygon",
-	                coordinates,
+	                bbox,
+	                geometry: {
+	                    type: "Polygon",
+	                    coordinates,
+	                },
 	            };
 	        }
 	    }
 	    return null;
 	}
-	function getGroundOverlay(node, styleMap, schema) {
-	    const geometry = getGroundOverlayBox(node);
+	function getGroundOverlay(node, styleMap, schema, options) {
+	    const box = getGroundOverlayBox(node);
+	    const geometry = box?.geometry || null;
+	    if (!geometry && options.skipNullGeometry) {
+	        return null;
+	    }
 	    const feature = {
 	        type: "Feature",
 	        geometry,
@@ -18784,6 +18903,9 @@
 	            "description",
 	        ]), getMaybeHTMLDescription(node), extractCascadedStyle(node, styleMap), extractStyle(node), extractIconHref(node), extractExtendedData(node, schema), extractTimeSpan(node), extractTimeStamp(node)),
 	    };
+	    if (box?.bbox) {
+	        feature.bbox = box.bbox;
+	    }
 	    if (feature.properties?.visibility !== undefined) {
 	        feature.properties.visibility = feature.properties.visibility !== "0";
 	    }
@@ -18890,22 +19012,24 @@
 	 * with a separate method to other features, depending
 	 * on which map framework you're using.
 	 */
-	function kmlWithFolders(node) {
+	function kmlWithFolders(node, options = {
+	    skipNullGeometry: false,
+	}) {
 	    const styleMap = buildStyleMap(node);
 	    const schema = buildSchema(node);
 	    const tree = { type: "root", children: [] };
-	    function traverse(node, pointer) {
+	    function traverse(node, pointer, options) {
 	        if (isElement(node)) {
 	            switch (node.tagName) {
 	                case "GroundOverlay": {
-	                    const placemark = getGroundOverlay(node, styleMap, schema);
+	                    const placemark = getGroundOverlay(node, styleMap, schema, options);
 	                    if (placemark) {
 	                        pointer.children.push(placemark);
 	                    }
 	                    break;
 	                }
 	                case "Placemark": {
-	                    const placemark = getPlacemark(node, styleMap, schema);
+	                    const placemark = getPlacemark(node, styleMap, schema, options);
 	                    if (placemark) {
 	                        pointer.children.push(placemark);
 	                    }
@@ -18921,11 +19045,11 @@
 	        }
 	        if (node.childNodes) {
 	            for (let i = 0; i < node.childNodes.length; i++) {
-	                traverse(node.childNodes[i], pointer);
+	                traverse(node.childNodes[i], pointer, options);
 	            }
 	        }
 	    }
-	    traverse(node, tree);
+	    traverse(node, tree, options);
 	    return tree;
 	}
 	/**
@@ -18933,16 +19057,18 @@
 	 * a [Generator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Iterators_and_Generators)
 	 * that yields output feature by feature.
 	 */
-	function* kmlGen(node) {
+	function* kmlGen(node, options = {
+	    skipNullGeometry: false,
+	}) {
 	    const styleMap = buildStyleMap(node);
 	    const schema = buildSchema(node);
 	    for (const placemark of $(node, "Placemark")) {
-	        const feature = getPlacemark(placemark, styleMap, schema);
+	        const feature = getPlacemark(placemark, styleMap, schema, options);
 	        if (feature)
 	            yield feature;
 	    }
 	    for (const groundOverlay of $(node, "GroundOverlay")) {
-	        const feature = getGroundOverlay(groundOverlay, styleMap, schema);
+	        const feature = getGroundOverlay(groundOverlay, styleMap, schema, options);
 	        if (feature)
 	            yield feature;
 	    }
@@ -18957,10 +19083,12 @@
 	 * with [JSON.stringify](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify)
 	 * or use it directly in libraries.
 	 */
-	function kml(node) {
+	function kml(node, options = {
+	    skipNullGeometry: false,
+	}) {
 	    return {
 	        type: "FeatureCollection",
-	        features: Array.from(kmlGen(node)),
+	        features: Array.from(kmlGen(node, options)),
 	    };
 	}
 
@@ -18975,7 +19103,7 @@
 		tcxGen: tcxGen
 	});
 
-	var __filename = '/Users/matthewbloch/mb4/mapshaper/node_modules/mproj/dist';
+	var __filename = '/Users/E122757/RMIT Research/mapshaper';
 
 	var mproj$2 = {exports: {}};
 
@@ -31652,10 +31780,12 @@
 	    }
 
 	    peek() {
+	        if (this.length === 0) return undefined;
 	        return this.ids[0];
 	    }
 
 	    peekValue() {
+	        if (this.length === 0) return undefined;
 	        return this.values[0];
 	    }
 	}
@@ -31765,8 +31895,17 @@
 	            throw new Error(`Added ${this._pos >> 2} items when expected ${this.numItems}.`);
 	        }
 
-	        const width = this.maxX - this.minX;
-	        const height = this.maxY - this.minY;
+	        if (this.numItems <= this.nodeSize) {
+	            // only one node, skip sorting and just fill the root box
+	            this._boxes[this._pos++] = this.minX;
+	            this._boxes[this._pos++] = this.minY;
+	            this._boxes[this._pos++] = this.maxX;
+	            this._boxes[this._pos++] = this.maxY;
+	            return;
+	        }
+
+	        const width = (this.maxX - this.minX) || 1;
+	        const height = (this.maxY - this.minY) || 1;
 	        const hilbertValues = new Uint32Array(this.numItems);
 	        const hilbertMax = (1 << 16) - 1;
 
@@ -31783,7 +31922,7 @@
 	        }
 
 	        // sort items by their Hilbert value (for packing later)
-	        sort(hilbertValues, this._boxes, this._indices, 0, this.numItems - 1);
+	        sort(hilbertValues, this._boxes, this._indices, 0, this.numItems - 1, this.nodeSize);
 
 	        // generate nodes at each tree level, bottom-up
 	        for (let i = 0, pos = 0; i < this._levelBounds.length - 1; i++) {
@@ -31791,22 +31930,18 @@
 
 	            // generate a parent node for each block of consecutive <nodeSize> nodes
 	            while (pos < end) {
+	                const nodeIndex = pos;
+
+	                // calculate bbox for the new node
 	                let nodeMinX = Infinity;
 	                let nodeMinY = Infinity;
 	                let nodeMaxX = -Infinity;
 	                let nodeMaxY = -Infinity;
-	                const nodeIndex = pos;
-
-	                // calculate bbox for the new node
 	                for (let i = 0; i < this.nodeSize && pos < end; i++) {
-	                    const minX = this._boxes[pos++];
-	                    const minY = this._boxes[pos++];
-	                    const maxX = this._boxes[pos++];
-	                    const maxY = this._boxes[pos++];
-	                    if (minX < nodeMinX) nodeMinX = minX;
-	                    if (minY < nodeMinY) nodeMinY = minY;
-	                    if (maxX > nodeMaxX) nodeMaxX = maxX;
-	                    if (maxY > nodeMaxY) nodeMaxY = maxY;
+	                    nodeMinX = Math.min(nodeMinX, this._boxes[pos++]);
+	                    nodeMinY = Math.min(nodeMinY, this._boxes[pos++]);
+	                    nodeMaxX = Math.max(nodeMaxX, this._boxes[pos++]);
+	                    nodeMaxY = Math.max(nodeMaxY, this._boxes[pos++]);
 	                }
 
 	                // add the new node to the tree data
@@ -31825,13 +31960,12 @@
 	        }
 
 	        let nodeIndex = this._boxes.length - 4;
-	        let level = this._levelBounds.length - 1;
 	        const queue = [];
 	        const results = [];
 
 	        while (nodeIndex !== undefined) {
 	            // find the end index of the node
-	            const end = Math.min(nodeIndex + this.nodeSize * 4, this._levelBounds[level]);
+	            const end = Math.min(nodeIndex + this.nodeSize * 4, upperBound(nodeIndex, this._levelBounds));
 
 	            // search through child nodes
 	            for (let pos = nodeIndex; pos < end; pos += 4) {
@@ -31850,11 +31984,9 @@
 
 	                } else {
 	                    queue.push(index); // node; add it to the search queue
-	                    queue.push(level - 1);
 	                }
 	            }
 
-	            level = queue.pop();
 	            nodeIndex = queue.pop();
 	        }
 
@@ -31885,22 +32017,22 @@
 
 	                if (nodeIndex < this.numItems * 4) { // leaf node
 	                    if (filterFn === undefined || filterFn(index)) {
-	                        // put a negative index if it's an item rather than a node, to recognize later
-	                        q.push(-index - 1, dist);
+	                        // put an odd index if it's an item rather than a node, to recognize later
+	                        q.push((index << 1) + 1, dist);
 	                    }
 	                } else {
-	                    q.push(index, dist);
+	                    q.push(index << 1, dist);
 	                }
 	            }
 
 	            // pop items from the queue
-	            while (q.length && q.peek() < 0) {
+	            while (q.length && (q.peek() & 1)) {
 	                const dist = q.peekValue();
 	                if (dist > maxDistSquared) {
 	                    q.clear();
 	                    return results;
 	                }
-	                results.push(-q.pop() - 1);
+	                results.push(q.pop() >> 1);
 
 	                if (results.length === maxResults) {
 	                    q.clear();
@@ -31908,7 +32040,7 @@
 	                }
 	            }
 
-	            nodeIndex = q.pop();
+	            nodeIndex = q.pop() >> 1;
 	        }
 
 	        q.clear();
@@ -31935,9 +32067,9 @@
 	    return arr[i];
 	}
 
-	// custom quicksort that sorts bbox data alongside the hilbert values
-	function sort(values, boxes, indices, left, right) {
-	    if (left >= right) return;
+	// custom quicksort that partially sorts bbox data alongside the hilbert values
+	function sort(values, boxes, indices, left, right, nodeSize) {
+	    if (Math.floor(left / nodeSize) >= Math.floor(right / nodeSize)) return;
 
 	    const pivot = values[(left + right) >> 1];
 	    let i = left - 1;
@@ -31950,8 +32082,8 @@
 	        swap$1(values, boxes, indices, i, j);
 	    }
 
-	    sort(values, boxes, indices, left, j);
-	    sort(values, boxes, indices, j + 1, right);
+	    sort(values, boxes, indices, left, j, nodeSize);
+	    sort(values, boxes, indices, j + 1, right, nodeSize);
 	}
 
 	// swap two values and two corresponding boxes
