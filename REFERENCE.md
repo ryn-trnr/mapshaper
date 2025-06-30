@@ -1,6 +1,6 @@
 # COMMAND REFERENCE
 
-This documentation applies to version 0.6.100 of mapshaper's command line program. Run `mapshaper -v` to check your version. For an introduction to the command line tool, read [this page](https://github.com/mbloch/mapshaper/wiki/Introduction-to-the-Command-Line-Tool) first.
+This documentation applies to version 0.6.105 of mapshaper's command line program. Run `mapshaper -v` to check your version. For an introduction to the command line tool, read [this page](https://github.com/mbloch/mapshaper/wiki/Introduction-to-the-Command-Line-Tool) first.
 
 ## Command line syntax
 
@@ -816,11 +816,15 @@ Join attribute data from a source layer or file to a target layer. If the `keys=
 
 `prefix=` Add a prefix to the names of fields joined from the external attribute table.
 
-`interpolate=`  (polygon-to-polygon joins only) A list of fields to interpolate/reaggregate based on area of overlap. Intended for fields containing count data, such as population counts or vote counts. Treats data as being uniformly distributed within polygon areas.
+`interpolate=`  (polygon-to-polygon joins only) A list of fields to interpolate/reaggregate based on area of overlap. Interpolates fields containing count data, such as population counts or vote counts. Treats data as being uniformly distributed within polygon areas. Also interpolates string fields containing categorical data. The value associated with the largest area of overlap between source and target polygons gets copied to the target feature.
 
 `point-method` (polygon-to-polygon joins only) Use an alternate method for joining two polygon layers. The default polygon-polygon join method detects areas of overlap between two polygon layers by compositing the two layers internally. This method is simpler -- it generates a temporary point layer from the source layer with the greater number of features (using the same inner-point method as the `-points inner` command), and then performs a point-to-polygon or polygon-to-point join. This method does not support the `interpolate=` option.
 
 `largest-overlap` (polygon-to-polygon joins only) selects a single polygon to join when multiple source polygons overlap a target polygon, based on largest area of overlap.
+
+`min-overlap-pct=` (polygon-to-polygon joins only) Only source features with at least this percentage overlap of the target feature (by area) get joined.
+
+`min-overlap-area=` (polygon-to-polygon joins only) Only source features with at least this much areal overlap of the target feature get joined.
 
 `max-distance=` (point-to-point joins only) Join source layer points within this distance of a target layer point.
 
@@ -1325,6 +1329,8 @@ mapshaper tracts.shp
 Add common SVG attributes for SVG export and display in the web UI. Attribute values take either a literal value or a JS expression. See the [`-each`](#-each) command for help with expressions. This command was named `-svg-style` in earlier versions of mapshaper.
 
 `where=`           Boolean JS expression for targetting a subset of features.
+
+`clear` Remove all style properties from a layer.
 
 `class=`           One or more CSS classes, separated by spaces (e.g. `class="light semi-transparent"`)
 

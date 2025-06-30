@@ -232,6 +232,8 @@ export function Basemap(gui) {
   }
 
   function initMap() {
+    var accessToken = (window.location.hostname == 'localhost' ?
+      params.localhost_key : params.production_key) || params.key;
     if (!enabled() || map || loading) return;
     loading = true;
   
@@ -239,7 +241,7 @@ export function Basemap(gui) {
     loadScript(params.js, function() {
       const defaultStyle = params.styles.find(style => style.id === 'streets'); // Set default style to 'streets'
       map = new window.mapboxgl.Map({
-        accessToken: params.key,
+        accessToken: accessToken,
         logoPosition: 'bottom-left',
         container: mapEl.node(),
         style: defaultStyle.url,
@@ -320,8 +322,8 @@ export function Basemap(gui) {
   }
 
   function refresh() {
-    var crs = gui.map.getDisplayCRS();
-    var off = !crs || !enabled() || !map || loading || !activeStyle;
+    var off = !enabled() || !map || loading || !activeStyle ||
+      !gui.map.getDisplayCRS(); // may be slow if getting bounds of many shapes
     fadeBtn.active(!off);
     clearBtn.active(!off);
     if (off) {

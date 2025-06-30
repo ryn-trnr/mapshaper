@@ -42,9 +42,8 @@ export function MshpMap(gui) {
       map = this,
       _mouse = new MouseArea(el, position),
       _ext = new MapExtent(position),
-      _nav = new MapNav(gui, _ext, _mouse),
       _visibleLayers = [], // cached visible map layers
-      _hit,
+      _hit, _nav,
       _intersectionLyr, _activeLyr, _overlayLyr,
       _renderer, _dynamicCRS;
 
@@ -92,8 +91,8 @@ export function MshpMap(gui) {
   this.pixelCoordsToLngLatCoords = function(x, y) {
     var crsFrom = this.getDisplayCRS();
     if (!crsFrom) return null; // e.g. table view
-    var p1 = internal.toLngLat(_ext.translatePixelCoords(x, y), crsFrom);
-    var p2 = internal.toLngLat(_ext.translatePixelCoords(x+1, y+1), crsFrom);
+    var p1 = internal.toLngLat(_ext.pixCoordsToMapCoords(x, y), crsFrom);
+    var p2 = internal.toLngLat(_ext.pixCoordsToMapCoords(x+1, y+1), crsFrom);
     return p1 && p2 && p1[1] <= 90 && p1[1] >= -90 ?
       formatCoordsForDisplay(p1, p2) : null;
   };
@@ -104,8 +103,8 @@ export function MshpMap(gui) {
     if (info && internal.isLatLngCRS(info.crs)) {
       return null; // latlon dataset
     }
-    var p1 = translateDisplayPoint(_activeLyr, _ext.translatePixelCoords(x, y));
-    var p2 = translateDisplayPoint(_activeLyr, _ext.translatePixelCoords(x+1, y+1));
+    var p1 = translateDisplayPoint(_activeLyr, _ext.pixCoordsToMapCoords(x, y));
+    var p2 = translateDisplayPoint(_activeLyr, _ext.pixCoordsToMapCoords(x+1, y+1));
     return p1 && p2 ? formatCoordsForDisplay(p1, p2) : null;
   };
 
@@ -192,6 +191,7 @@ export function MshpMap(gui) {
     _ext.setFullBounds(calcFullBounds());
     _ext.resize();
     _renderer = new LayerRenderer(gui, el);
+    _nav = new MapNav(gui, _ext, _mouse);
 
     if (opts.inspectorControl) {
       _hit = new HitControl(gui, _ext, _mouse),
@@ -224,6 +224,7 @@ export function MshpMap(gui) {
 
   // Refresh map display in response to data changes, layer selection, etc.
   function onUpdate(e) {
+    var updated = model.getActiveLayer();
     var prevLyr = _activeLyr || null;
     var fullBounds;
     var needReset;
@@ -238,8 +239,8 @@ export function MshpMap(gui) {
 
       // reset simplification after projection (thresholds have changed)
       // TODO: preserve simplification pct (need to record pct before change)
-      if (e.flags.proj && e.dataset.arcs) {
-        e.dataset.arcs.setRetainedPct(1);
+      if (e.flags.proj && updated.dataset.arcs) {
+        updated.dataset.arcs.setRetainedPct(1);
       }
     }
 
@@ -252,9 +253,9 @@ export function MshpMap(gui) {
       return;
     }
 
-    if (e.layer) {
-      _activeLyr = e.layer;
-      initActiveLayer(e.layer, e.dataset);
+    if (updated.layer) {
+      _activeLyr = updated.layer;
+      initActiveLayer();
     } else {
       _activeLyr = null;
     }
@@ -441,9 +442,10 @@ export function MshpMap(gui) {
     });
   }
 
-  function initActiveLayer(lyr, dataset) {
-    enhanceLayerForDisplay(lyr, dataset, getDisplayOptions());
-    lyr.gui.style = MapStyle.getActiveLayerStyle(lyr.gui.displayLayer, getGlobalStyleOptions());
+  function initActiveLayer() {
+    var active = model.getActiveLayer();
+    enhanceLayerForDisplay(active.layer, active.dataset, getDisplayOptions());
+    active.layer.gui.style = MapStyle.getActiveLayerStyle(active.layer.gui.displayLayer, getGlobalStyleOptions());
   }
 
   function getDrawableFurnitureLayers(layers) {
@@ -485,7 +487,14 @@ export function MshpMap(gui) {
     });
   }
 
-  function drawLayers(action) {
+  var skipCounts = {
+    nav: 0,
+    hover: 0,
+    redraw: 0
+  };
+  function drawLayers(actionArg) {
+    var action = actionArg || 'redraw';
+    skipCounts[action]++;
     // This seems to smooth out navigation and keep overlay and basemap in sync.
     requestAnimationFrame(function() {drawLayers2(action);});
   }
@@ -493,8 +502,12 @@ export function MshpMap(gui) {
   // action:
   //   'nav'      map was panned/zoomed -- only map extent has changed
   //   'hover'    highlight has changed -- only refresh overlay
-  //   (default)  anything could have changed
+  //   'redraw'  anything could have changed
   function drawLayers2(action) {
+    if (--skipCounts[action] > 0) {
+      // skip redraw if more draws are queued up
+      return;
+    }
     // sometimes styles need to be regenerated with 'hover' action (when?)
     var layersMayHaveChanged = action != 'nav'; // !action;
     var fullBounds;

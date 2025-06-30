@@ -1,6 +1,6 @@
 {
   "name": "mapshaper",
-  "version": "0.6.102",
+  "version": "0.6.105",
   "description": "A tool for editing vector datasets for mapping and GIS.",
   "keywords": [
     "shapefile",
@@ -28,7 +28,6 @@
     "lint": "eslint --ext mjs src/",
     "prepublishOnly": "npm lint; npm test; ./pre-publish",
     "postpublish": "./release_web_ui; ./release_github_version",
-    "browserify": "browserify -r sync-request -r mproj -r buffer -r iconv-lite -r fs -r flatbush -r rw -r path -r kdbush -r @tmcw/togeojson -r @placemarkio/tokml -r 'idb-keyval' -o www/modules.js",
     "dev": "rollup --config --watch"
   },
   "main": "./mapshaper.js",
@@ -50,7 +49,7 @@
     "d3-interpolate": "^3.0.1",
     "d3-scale-chromatic": "3.0.0",
     "delaunator": "^5.0.0",
-    "fflate": "^0.7.4",
+    "fflate": "0.8.2",
     "flatbush": "^3.2.1",
     "geokdbush": "^1.1.0",
     "iconv-lite": "^0.6.3",
@@ -64,13 +63,14 @@
     "tinyqueue": "^2.0.3"
   },
   "devDependencies": {
-    "@rollup/plugin-json": "^6.0.1",
-    "@rollup/plugin-node-resolve": "^13.3.0",
-    "browserify": "^17.0.0",
+    "@rollup/plugin-commonjs": "^28.0.6",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.1",
     "csv-spectrum": "^1.0.0",
     "eslint": "^8.16.0",
     "mocha": "^10.2.0",
-    "rollup": "^2.73.0",
+    "rollup": "^4.44.1",
+    "rollup-plugin-polyfill-node": "^0.13.0",
     "shell-quote": "^1.7.4",
     "underscore": "^1.13.1"
   },

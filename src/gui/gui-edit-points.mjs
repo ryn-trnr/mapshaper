@@ -62,8 +62,8 @@ export function initPointEditing(gui, ext, hit) {
     var coords = target.shapes[id];
     deleteFeature(target, id);
     gui.dispatchEvent('feature_delete', {coords, d, target, fid: id});
-    gui.dispatchEvent('map-needs-refresh');
     hit.setHitId(-1);
+    gui.dispatchEvent('map-needs-refresh');
   }
 
   hit.on('click', function(e) {
@@ -118,12 +118,12 @@ export function initPointEditing(gui, ext, hit) {
 
   function pixToDataCoords(x, y) {
     var target = hit.getHitTarget();
-    return translateDisplayPoint(target, ext.translatePixelCoords(x, y));
+    return translateDisplayPoint(target, ext.pixCoordsToMapCoords(x, y));
   }
 
   function translateDeltaDisplayCoords(dx, dy, ext) {
-    var a = ext.translatePixelCoords(0, 0);
-    var b = ext.translatePixelCoords(dx, dy);
+    var a = ext.pixCoordsToMapCoords(0, 0);
+    var b = ext.pixCoordsToMapCoords(dx, dy);
     return [b[0] - a[0], b[1] - a[1]];
   }
 }
