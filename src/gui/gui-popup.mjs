@@ -135,15 +135,14 @@ export function Popup(gui, toNext, toPrev) {
       rec = getMultiRecord(recIds, table);
     }
     rec = rec || {};
-    utils.forEachProperty(rec, function(v, k) {
-      // missing GeoJSON fields are set to undefined on import; skip these
-      if (v === undefined) return;
-      var rowEl = renderRow(k, v, recIds, table, editable);
-      if (rowEl) {
-        rowEl.appendTo(tableEl);
-        rows++;
-      }
-    });
+    // Check if there's a cycleway field at all
+    if ('cycleway' in rec) {
+        var rowEl = renderRow('cycleway', rec['cycleway'], recIds, table, editable);
+        if (rowEl) {
+            rowEl.appendTo(tableEl);
+            rows++;
+        }
+    }    
     return rows > 0 ? tableEl : null;
   }
 
@@ -168,6 +167,8 @@ export function Popup(gui, toNext, toPrev) {
 
 
   function renderRow(key, val, recIds, table, editable) {
+    // Only render row if field name is 'cycleway'
+    if (key !== 'cycleway') return null;
     var type = getFieldType(val, key, table);
     var str = formatInspectorValue(val, type);
     var rowHtml = `<td class="field-name">${key}</td><td><span class="value">${utils.htmlEscape(str)}</span> </td>`;
