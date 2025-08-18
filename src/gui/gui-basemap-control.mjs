@@ -22,14 +22,12 @@ function loadStylesheet(url) {
 }
 
 export function Basemap(gui) {
-  var menu = gui.container.findChild('.basemap-options');
+  var menu = gui.container.findChild('.display-options');
   var fadeBtn = new SimpleButton(menu.findChild('.fade-btn'));
-  var closeBtn = new SimpleButton(menu.findChild('.close2-btn'));
   var clearBtn = new SimpleButton(menu.findChild('.clear-btn'));
   var menuButtons = menu.findChild('.basemap-styles');
   var overlayButtons = gui.container.findChild('.basemap-overlay-buttons');
   var container = gui.container.findChild('.basemap-container');
-  var basemapBtn = gui.container.findChild('.basemap-btn');
   var basemapNote = gui.container.findChild('.basemap-note');
   var basemapWarning = gui.container.findChild('.basemap-warning');
   var mapEl = gui.container.findChild('.basemap');
@@ -45,22 +43,25 @@ export function Basemap(gui) {
     //  TODO: check page URL for compatibility with mapbox key
     init();
   } else {
-    basemapBtn.hide();
+    menu.findChild('.basemap-opts').hide();
   }
 
   function init() {
-    gui.addMode('basemap', turnOn, turnOff, basemapBtn);
-
-    closeBtn.on('click', function() {
-      gui.clearMode();
-      turnOff();
+    gui.on('mode', function(e) {
+      if (e.prev == 'display_options') {
+       basemapWarning.hide();
+       basemapNote.hide();
+      }
+      if (e.name == 'display_options') {
+        onUpdate();
+      }
     });
 
     clearBtn.on('click', function() {
       if (activeStyle) {
         turnOffBasemap();
         updateButtons();
-        closeMenu();
+        // closeMenu();
       }
     });
 
@@ -95,7 +96,7 @@ export function Basemap(gui) {
           showBasemap(style);
         }
         updateButtons();
-        closeMenu();
+        // closeMenu();
       }
     });
 
@@ -202,11 +203,6 @@ export function Basemap(gui) {
     });
   }
 
-  function turnOn() {
-    onUpdate();
-    menu.show();
-  }
-
   function onUpdate() {
     var activeLyr = gui.model.getActiveLayer(); // may be null
     var info = getDatasetCrsInfo(activeLyr?.dataset); // defaults to wgs84
@@ -228,17 +224,11 @@ export function Basemap(gui) {
       activeStyle = null;
       updateButtons();
     } else {
-      note = `Your data ${activeStyle ? 'is' : 'will be'} displayed using the Mercator projection.`;
+      note = `Note: basemaps use the Mercator projection.`;
       basemapNote.text(note).show();
       overlayButtons.show();
       overlayButtons.removeClass('disabled');
     }
-  }
-
-  function turnOff() {
-    basemapWarning.hide();
-    basemapNote.hide();
-    menu.hide();
   }
 
   function enabled() {
@@ -370,5 +360,9 @@ export function Basemap(gui) {
     }
   }
 
-  return {refresh, show: onUpdate};
+  function isOn() {
+    return !!activeStyle;
+  }
+
+  return {refresh, show: onUpdate, isOn};
 }

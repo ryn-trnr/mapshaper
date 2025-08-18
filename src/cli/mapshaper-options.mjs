@@ -591,6 +591,11 @@ export function getOptionParser() {
     .option('sliver-control', sliverControlOpt)
     .option('snap-interval', snapIntervalOpt)
     .option('no-snap', noSnapOpt)
+    // // not useful in -clean -- clean removes gaps, not slivers
+    // .option('keep-shapes', {
+    //   type: 'flag',
+    //   describe: 'protect sliver polygons from complete removal'
+    // })
     .option('allow-overlaps', {
       describe: 'allow polygons to overlap (disables gap fill)',
       type: 'flag'
@@ -642,6 +647,10 @@ export function getOptionParser() {
       })
     .option('name', nameOpt)
     .option('no-snap', noSnapOpt)
+    .option('no-cleanup', {
+      // for debugging - no documentation
+      type: 'flag'
+    })
     .option('target', targetOpt)
     .option('no-replace', noReplaceOpt);
 
@@ -877,6 +886,10 @@ export function getOptionParser() {
     .option('bbox', bboxOpt)
     .option('name', nameOpt)
     .option('no-snap', noSnapOpt)
+    .option('no-cleanup', {
+      // for debugging - no documentation
+      type: 'flag'
+    })
     .option('target', targetOpt)
     .option('no-replace', noReplaceOpt);
 
@@ -986,6 +999,10 @@ export function getOptionParser() {
     .option('remove-empty', {
       type: 'flag',
       describe: 'delete features with null geometry'
+    })
+    .option('keep-shapes', {
+      type: 'flag',
+      describe: 'protect sliver polygons from complete removal'
     })
     .option('target', targetOpt);
 
@@ -1194,6 +1211,8 @@ export function getOptionParser() {
     .option('calc', calcOpt)
     .option('name', nameOpt)
     .option('target', targetOpt)
+    .option('snap-interval', snapIntervalOpt)
+    .option('no-snap', noSnapOpt)
     .option('no-replace', noReplaceOpt);
 
   parser.command('point-grid')

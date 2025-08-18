@@ -190,11 +190,13 @@ export function MapExtent(_position) {
   // stop zooming before rounding errors become too obvious
   function maxScale() {
     var minPixelScale = 1e-16;
+    // var minPixelScale = 1e-17; // gets jumpy
     var xmax = maxAbs(_fullBounds.xmin, _fullBounds.xmax, _fullBounds.centerX());
     var ymax = maxAbs(_fullBounds.ymin, _fullBounds.ymax, _fullBounds.centerY());
     var xscale = _fullBounds.width() / _position.width() / xmax / minPixelScale;
     var yscale = _fullBounds.height() / _position.height() / ymax / minPixelScale;
-    return Math.min(xscale, yscale);
+    // return Math.min(xscale, yscale);
+    return Math.max(xscale, yscale);
   }
 
   function maxAbs() {

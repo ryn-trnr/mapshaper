@@ -17,22 +17,23 @@ export function drawOutlineLayerToCanvas(lyr, canv, ext) {
   var arcs;
   var style = lyr.gui.style;
   var arcCounts = lyr.gui.arcCounts;
-  var darkStyle = {strokeWidth: style.strokeWidth, strokeColor: style.strokeColors[1]},
-      lightStyle = {strokeWidth: style.strokeWidth, strokeColor: style.strokeColors[0]};
+  var fgStyle = {strokeWidth: style.strokeWidth, strokeColor: style.strokeColors[1]},
+      bgStyle = {strokeWidth: style.strokeWidth, strokeColor: style.strokeColors[0]};
   var filter;
+
   if (internal.layerHasPaths(lyr.gui.displayLayer)) {
     if (!arcCounts) {
       arcCounts = lyr.gui.arcCounts = new Uint8Array(lyr.gui.displayArcs.size());
       internal.countArcsInShapes(lyr.gui.displayLayer.shapes, arcCounts);
     }
     arcs = getArcsForRendering(lyr, ext);
-    if (lightStyle.strokeColor) {
+    if (bgStyle.strokeColor) {
       filter = getArcFilter(arcs, ext, false, arcCounts);
-      canv.drawArcs(arcs, lightStyle, filter);
+      canv.drawArcs(arcs, bgStyle, filter);
     }
-    if (darkStyle.strokeColor && lyr.gui.displayLayer.geometry_type != 'point') {
+    if (fgStyle.strokeColor && lyr.gui.displayLayer.geometry_type != 'point') {
       filter = getArcFilter(arcs, ext, true, arcCounts);
-      canv.drawArcs(arcs, darkStyle, filter);
+      canv.drawArcs(arcs, fgStyle, filter);
     }
   }
   if (lyr.gui.displayLayer.geometry_type == 'point') {
@@ -160,9 +161,8 @@ export function DisplayCanvas() {
     var iter = new internal.ShapeIter(arcs);
     var t = getScaledTransform(_ext);
     var bounds = _ext.getBounds();
-    var radius = (style.strokeWidth > 2 ? style.strokeWidth * 0.9 : 1.8) * GUI.getPixelRatio() * getScaledLineScale(_ext, style);
+    var radius = (style.strokeWidth > 2 ? style.strokeWidth * 1 : 2.2) * GUI.getPixelRatio() * getScaledLineScale(_ext, style);
     var color = style.strokeColor || 'black';
-
     var i, j, p;
     _ctx.beginPath();
     _ctx.fillStyle = color;
@@ -421,8 +421,8 @@ function getLineScale(ext) {
       s = 1;
   if (mapScale < 0.5) {
     s *= Math.pow(mapScale + 0.5, 0.35);
-  } else if (mapScale > 100) {
-    s *= Math.pow(mapScale - 99, 0.10);
+  } else if (mapScale > 30) {
+    s *= Math.pow(mapScale - 29, 0.065);
   }
   return s;
 }

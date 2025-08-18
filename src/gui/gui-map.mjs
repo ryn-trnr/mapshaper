@@ -166,7 +166,7 @@ export function MshpMap(gui) {
     clearAllDisplayArcs();
 
     // Reproject all visible map layers
-    getContentLayers().forEach(function(lyr) {
+    getContentLayers().concat(_intersectionLyr || []).forEach(function(lyr) {
       projectLayerForDisplay(lyr, newCRS);
     });
 
@@ -209,7 +209,7 @@ export function MshpMap(gui) {
       darkMode: !!gui.state.dark_basemap,
       outlineMode: mode == 'vertices',
       interactionMode: mode
-    }, opts);
+    }, opts, gui.display.getOptions()); // intersectionsOn, ghostingOn
   }
 
   // Refresh map display in response to data changes, layer selection, etc.
@@ -218,6 +218,10 @@ export function MshpMap(gui) {
     var prevLyr = _activeLyr || null;
     var fullBounds;
     var needReset;
+
+    if (!updated) {
+      return; // e.g. if command is run in console before data is loaded
+    }
 
     if (arcsMayHaveChanged(e.flags)) {
       // regenerate filtered arcs the next time they are needed for rendering
@@ -324,15 +328,17 @@ export function MshpMap(gui) {
     // add margin
     // use larger margin for small sizes
     var widthPx = _ext.width();
-    var marginPct = widthPx < 700 && 3.5 || widthPx < 800 && 3 || 2.5;
+    var marginPct = widthPx < 700 && 4.5 || widthPx < 800 && 4 || 3.5;
     if (isTableView()) {
       var n = internal.getFeatureCount(_activeLyr);
       marginPct = n < 5 && 20 || n < 100 && 10 || 4;
     }
     b.scale(1 + marginPct / 100 * 2);
 
-    // Inflate display bounding box by a tiny amount (gives extent to single-point layers and collapsed shapes)
-    b.padBounds(1e-4, 1e-4, 1e-4, 1e-4);
+    // Inflate display bounding box of single-point layers and collapsed shapes a bit
+    if (b.width() === 0 || b.height() === 0) {
+      b.padBounds(1e-4, 1e-4, 1e-4, 1e-4);
+    }
     return b;
   }
 
@@ -428,14 +434,13 @@ export function MshpMap(gui) {
         // regenerating active style everytime, to support style change when
         // switching between outline and preview modes.
         style = getActiveLayerStyle(mapLayer.gui.displayLayer, getGlobalStyleOptions());
-        if (style.type != 'styled' && layers.length > 1 && style.strokeColors) {
-          // kludge to hide ghosted layers when reference layers are present
-          // TODO: consider never showing ghosted layers (which appear after
-          // commands like dissolve and filter).
-          style = utils.defaults({
-            strokeColors: [null, style.strokeColors[1]]
-          }, style);
-        }
+        // changed: ghosting is set in gui-layer-styler.mjs
+        // if (style.type != 'styled' && layers.length > 1 && style.strokeColors) {
+        //   // kludge to hide ghosted layers when reference layers are present
+        //   style = utils.defaults({
+        //     strokeColors: [null, style.strokeColors[1]]
+        //   }, style);
+        // }
       } else {
         if (mapLayer == _activeLyr) {
           console.error("Error: shared map layer");
