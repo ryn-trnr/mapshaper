@@ -70,7 +70,7 @@ body.map-view {
 .page-header,
 .dialog-btn,
 .sidebar-btn {
-	background-color: #1385B7;
+	background-color: #171c60;
 }
 
 .colored-text,
@@ -80,11 +80,11 @@ body.map-view {
 .add-field-btn,
 .nav-menu-item,
 .edit-data-btn {
-	color: #10699b;
+	color: #0e113a;
 }
 
 .dot-underline {
-	border-color: #10699b;
+	border-color: #0e113a;
 }
 
 .dot-underline {
@@ -100,7 +100,7 @@ body.map-view {
 }*/
 
 .nav-btn * {
-	fill: #1385B7;
+	fill: #171c60;
 }
 
 .alert-btn + .alert-btn {
@@ -121,7 +121,7 @@ body.map-view {
 .btn.header-btn:hover,
 .dialog-btn.default-btn,
 .dialog-btn.selected-btn {
-	background-color: #1A6A96;
+	background-color: #0e113a;
 }
 
 .dialog-btn.disabled {
@@ -135,7 +135,7 @@ body.map-view {
 	font-size: 13px;
 	color: white;
 	min-width: 28px;
-	background-color: #bb564f;
+	background-color: #e61e29;
 }
 
 .colored-text::selection {
@@ -740,7 +740,7 @@ body.console-open .map-area {
 .layer-control-btn > .btn.header-btn {
 	white-space: nowrap;
 	position: relative;
-	background-color: #1A6A96;
+	background-color: #0e113a;
 	padding-left: 12px;
 	padding-right: 12px;
 	pointer-events: auto;
@@ -748,7 +748,7 @@ body.console-open .map-area {
 }
 
 .layer-control-btn > .btn.header-btn:hover {
-	background-color: #094B70;
+	background-color: #0e113a;
 }
 
 body.simplify .layer-control-btn {
@@ -1374,13 +1374,13 @@ body.pan.panning .map-layers:not(.drawing) {
 }
 
 .nav-btn.selected {
-	background-color: black;
+	background-color: #e61e29;
 	border-radius: 5px;
 }
 
 .nav-btn:hover:not(.disabled) svg *,
 .nav-btn.hover.menu-btn:not(.disabled) svg * {
-	fill: #166689;
+	fill: #0e113a;
 }
 
 .nav-btn.menu-btn.selected:not(.disabled) svg * {

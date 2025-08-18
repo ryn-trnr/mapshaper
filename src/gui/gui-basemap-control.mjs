@@ -39,6 +39,7 @@ export function Basemap(gui) {
   var activeStyle;
   var loading = false;
   var faded = false;
+  var _dataLoaded = false;
 
   if (params) {
     //  TODO: check page URL for compatibility with mapbox key
@@ -75,18 +76,12 @@ export function Basemap(gui) {
       }
     });
 
-    gui.model.on('update', onUpdate);
-
-    gui.on('map_click', function() {
-      // close menu if user click on the map
-      if (gui.getMode() == 'basemap') gui.clearMode();
-    });
-
+    // Set up style buttons
     params.styles.forEach(function(style) {
       El('div')
-      .html(`<div class="basemap-style-btn"><img src="${style.icon}"></img></div><div class="basemap-style-label">${style.name}</div>`)
-      .appendTo(menuButtons)
-      .findChild('.basemap-style-btn').on('click', onClick);
+        .html(`<div class="basemap-style-btn"><img src="${style.icon}"></img></div><div class="basemap-style-label">${style.name}</div>`)
+        .appendTo(menuButtons)
+        .findChild('.basemap-style-btn').on('click', onClick);
 
       El('div').addClass('basemap-overlay-btn basemap-style-btn')
         .html(`<img src="${style.icon}"></img>`).on('click', onClick)
@@ -103,6 +98,47 @@ export function Basemap(gui) {
         closeMenu();
       }
     });
+
+    // Handle map clicks
+    gui.on('map_click', function() {
+      if (gui.getMode() == 'basemap') gui.clearMode();
+    });
+
+    // Watch for data updates
+    gui.model.on('update', function() {
+      const activeLayer = gui.model.getActiveLayer();
+      
+      // Only load basemap when we have valid data
+      if (activeLayer?.layer && !_dataLoaded) {
+        _dataLoaded = true;
+        
+        // Load vector basemap after data is ready
+        const vectorStyle = params.styles.find(style => style.type === 'vector');
+        if (vectorStyle) {
+          showBasemap(vectorStyle);
+          updateButtons();
+        }
+      }
+      
+      // Run normal update checks
+      onUpdate();
+    });
+
+    // Set default bounds to Victoria as fallback
+    function getLonLatBounds() {
+      const victoriaBounds = [140.9617, -39.1596, 149.9767, -33.9804];
+      const activeLayer = gui.model.getActiveLayer();
+      
+      if (!activeLayer?.layer) {
+        return victoriaBounds;
+      }
+      
+      // Original bounds calculation
+      var ext = gui.map.getExtent();
+      var bbox = ext.getBounds().toArray();
+      return fromWebMercator(bbox[0], bbox[1])
+        .concat(fromWebMercator(bbox[2], bbox[3]));
+    }
   }
 
   // close and turn off mode
@@ -123,16 +159,12 @@ export function Basemap(gui) {
   
     if (map) {
       if (style.type === 'vector') {
-        const rasterLayerId = 'satellite';
-        if (map.getLayer(rasterLayerId)) {
-          map.removeLayer(rasterLayerId);
+        // If changing from raster to vector, reinitialize the map
+        if (map.getLayer('raster')) {
+          map.removeLayer('raster');
+          map.removeSource('raster');
         }
-        if (map.getSource(rasterLayerId)) {
-          map.removeSource(rasterLayerId);
-        }
-        map.remove();  
-        map = null;
-        initMap();    
+        map.setStyle(style.url); // Just update style for vector    
       } else if (style.type === 'raster') {
         const rasterLayerId = 'satellite';
         if (map.getLayer(rasterLayerId)) {
@@ -240,11 +272,12 @@ export function Basemap(gui) {
     loadStylesheet(params.css);
     loadScript(params.js, function() {
       const defaultStyle = params.styles.find(style => style.id === 'streets'); // Set default style to 'streets'
+      const initialStyle = activeStyle?.url || params.styles.find(style => style.id === 'streets').url;
       map = new window.mapboxgl.Map({
         accessToken: accessToken,
         logoPosition: 'bottom-left',
         container: mapEl.node(),
-        style: defaultStyle.url,
+        style: initialStyle,
         bounds: getLonLatBounds(),
         doubleClickZoom: false,
         dragPan: false,
@@ -258,26 +291,19 @@ export function Basemap(gui) {
 
       map.on('load', function() {
         loading = false;
-  
-        if (activeStyle.type === 'raster') {
-          // For raster layers (openstreetmap, satellite)
+        // Only add layers if this is a raster style
+        if (activeStyle?.type === 'raster') {
           map.addSource(activeStyle.id, {
             type: 'raster',
             tiles: [activeStyle.url],
             tileSize: activeStyle.tileSize || 256
           });
-  
           map.addLayer({
             id: activeStyle.id,
             type: 'raster',
             source: activeStyle.id
           });
-  
-        } else if (activeStyle.type === 'vector') {
-          // For vector basemap (streets)
-          map.setStyle(activeStyle.url);
         }
-  
         refresh();
       });
     });

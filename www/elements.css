@@ -70,7 +70,7 @@ div.tip {
 	font-size: 14px;
 	line-height: 1;
 	font-weight: normal;
-	color: #1385B7;
+	color: #171c60;
 }
 
 .tip-button .tip-anchor {
@@ -87,7 +87,7 @@ div.tip {
 
 .tip-button:hover {
 	font-weight: normal;
-	color: #033D6D;
+	color: #0e113a;
 }
 
 .tip-button:hover * {

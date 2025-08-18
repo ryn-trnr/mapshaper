@@ -42,6 +42,7 @@ export function InteractionMode(gui) {
   var _editMode = 'off';
   var _prevMode;
   var _menuOpen = false;
+  var _initialized = false;
 
   // Only render edit mode button/menu if this option is present
   if (gui.options.inspectorControl) {
@@ -203,6 +204,8 @@ export function InteractionMode(gui) {
   }
 
   function setMode(mode) {
+    // Add additional guard clauses
+    if (!gui || !gui.state || !gui.model.getActiveLayer()) return;
     var changed = mode != _editMode;
     if (changed) {
       menu.classed('active', mode != 'off');
@@ -239,4 +242,19 @@ export function InteractionMode(gui) {
       el.classed('selected', el.attr('data-name') == _editMode);
     });
   }
+
+  // Set edit mode to 'info' upon loading the GUI
+  // In the InteractionMode constructor:
+  gui.model.on('update', function(e) {
+    if (!_initialized && gui.model.getActiveLayer()) {
+      var activeLayer = gui.model.getActiveLayer();
+      // Additional check to ensure layer is fully ready
+      if (activeLayer && activeLayer.layer && activeLayer.dataset) {
+        _initialized = true;
+        setTimeout(() => {
+          setMode('info');
+        }, 300); // Slightly longer delay to ensure everything is ready
+      }
+    }
+  }, null, 100);
 }

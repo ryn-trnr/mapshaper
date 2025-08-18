@@ -76,7 +76,8 @@ var selectionFill = "rgba(237, 214, 0, 0.12)",
     };
 
 export function getOverlayLayers(activeLyr, hitData, styleOpts) {
-  if (activeLyr.hidden || !activeLyr?.gui?.style) return [];
+  // Add null checks at the start
+  if (!activeLyr || activeLyr.hidden || !activeLyr?.gui?.style) return [];
   var displayLyr = activeLyr.gui.displayLayer;
   var layers, lyr, outlineStyle, ids;
   if (styleOpts.interactionMode == 'vertices') {
