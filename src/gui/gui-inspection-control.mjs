@@ -33,10 +33,61 @@ export function InspectionControl2(gui, hit) {
         var layer = gui.model.getActiveLayer().layer;
         if (layer && layer.data) {
           var records = layer.data.getRecords();
-          e.ids.forEach(function(id) {
-            if (records[id]) records[id].stroke = color;
+          var shapes = layer.shapes;
+          var idsToUpdate = new Set(e.ids);
+
+          // Helper to identify topologically equivalent shapes
+          var getShapeKey = function(shape) {
+            if (!shape || !shape.length) return null;
+            if (Array.isArray(shape[0]) && typeof shape[0][0] === 'number') {
+              var arcs = [];
+              for (var i=0; i<shape.length; i++) {
+                for (var j=0; j<shape[i].length; j++) {
+                  var id = shape[i][j];
+                  arcs.push(id < 0 ? ~id : id);
+                }
+              }
+              return arcs.sort(function(a, b) { return a - b; }).join(',');
+            }
+            return null;
+          };
+
+          if (shapes) {
+             var targetKeys = [];
+             e.ids.forEach(function(id) {
+                 var key = getShapeKey(shapes[id]);
+                 if (key) targetKeys.push(key);
+             });
+             
+             if (targetKeys.length > 0) {
+                 for (var i=0; i<shapes.length; i++) {
+                     if (idsToUpdate.has(i)) continue;
+                     var key = getShapeKey(shapes[i]);
+                     if (key && targetKeys.includes(key)) {
+                         idsToUpdate.add(i);
+                     }
+                 }
+             }
+          }
+
+          var allIds = Array.from(idsToUpdate);
+          allIds.forEach(function(id) {
+            if (records[id]) {
+              records[id].stroke = color;
+              if (!e.ids.includes(id)) {
+                  records[id].cycleway = e.value;
+              }
+            }
           });
+          
           gui.session.dataValueUpdated(e.ids, 'stroke', color);
+          
+          var otherIds = allIds.filter(function(id) { return !e.ids.includes(id); });
+          if (otherIds.length > 0) {
+              gui.session.dataValueUpdated(otherIds, 'cycleway', e.value);
+              gui.session.dataValueUpdated(otherIds, 'stroke', color);
+          }
+
           gui.dispatchEvent('map-needs-refresh');
         }
       }
