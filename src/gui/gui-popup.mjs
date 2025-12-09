@@ -169,15 +169,48 @@ export function Popup(gui, toNext, toPrev) {
   function renderRow(key, val, recIds, table, editable) {
     // Only render row if field name is 'cycleway'
     if (key !== 'cycleway') return null;
+    
     var type = getFieldType(val, key, table);
     var str = formatInspectorValue(val, type);
-    var rowHtml = `<td class="field-name">${key}</td><td><span class="value">${utils.htmlEscape(str)}</span> </td>`;
-    var rowEl = El('tr').html(rowHtml);
-    var cellEl = rowEl.findChild('.value');
-    setFieldClass(cellEl, val, type);
+    
     if (editable) {
-      editItem(cellEl, key, val, recIds, table, type);
+      // Create dropdown for cycleway field
+      var dropdownOptions = [
+        {value: '', label: ''},
+        {value: 'shared_path', label: 'shared_path'},
+        {value: 'simple_lane', label: 'simple_lane'},
+        {value: 'inadequate_lane', label: 'inadequate_lane'},
+        {value: 'separated_lane', label: 'separated_lane'},
+        {value: 'shared_street', label: 'shared_street'},
+        {value: 'bikepath', label: 'bikepath'}
+      ];
+      
+      var optionsHtml = dropdownOptions.map(function(option) {
+        var selected = val === option.value ? ' selected' : '';
+        return `<option value="${utils.htmlEscape(option.value)}"${selected}>${utils.htmlEscape(option.label)}</option>`;
+      }).join('');
+      
+      var rowHtml = `<td class="field-name">${key}</td><td><select class="cycleway-dropdown value">${optionsHtml}</select></td>`;
+      var rowEl = El('tr').html(rowHtml);
+      var cellEl = rowEl.findChild('.value');
+      
+      // Add event listener for dropdown changes
+      cellEl.on('change', function(e) {
+        var newValue = cellEl.node().value;
+        gui.dispatchEvent('data_preupdate', {ids: recIds});
+        updateRecords(recIds, key, newValue, table);
+        gui.dispatchEvent('data_postupdate', {ids: recIds});
+        self.dispatchEvent('data_updated', {field: key, value: newValue, ids: recIds});
+      });
+      
+    } else {
+      // Non-editable view - show as text
+      var rowHtml = `<td class="field-name">${key}</td><td><span class="value">${utils.htmlEscape(str)}</span> </td>`;
+      var rowEl = El('tr').html(rowHtml);
+      var cellEl = rowEl.findChild('.value');
     }
+    
+    setFieldClass(cellEl, val, type);
     return rowEl;
   }
 
@@ -192,6 +225,11 @@ export function Popup(gui, toNext, toPrev) {
   }
 
   function editItem(el, key, val, recIds, table, type) {
+    // Skip creating text input for cycleway field since we're using dropdown
+    if (key === 'cycleway') {
+      return;
+    }
+
     var input = new ClickText2(el),
         strval = formatInspectorValue(val, type),
         parser = internal.getInputParser(type);

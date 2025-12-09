@@ -184,7 +184,6 @@ body.map-view {
 }
 
 .btn.header-btn {
-	color: #fff;
 	border: none;
 	margin-top: 0px;
 	height: 29px;
@@ -193,6 +192,14 @@ body.map-view {
 	font-size: 14px;
 	font-weight: 600;
 	padding: 8px 8px 0px 8px;
+}
+
+.export-btn {
+	color: #f8f549;
+}
+
+.console-btn, .simplify-btn, .wiki-btn, .github-btn {
+    display: none !important;
 }
 
 .page-header .header-btn.disabled,
@@ -1061,6 +1068,22 @@ img.close-btn:hover,
 	max-width: 260px;
 }
 
+.cycleway-dropdown {
+  width: 100%;
+  padding: 1px 1px;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+  background-color: white;
+  font-size: 12px;
+  font-family: 'SourceSans3';
+}
+
+.cycleway-dropdown:focus {
+  outline: none;
+  border-color: #171c60;
+  box-shadow: 0 0 3px #171c60;
+}
+
 .popup .value {
 	outline: none;
 	word-wrap: break-word;
@@ -1192,6 +1215,10 @@ div.basemap-style-btn.active {
 
 .basemap-style-label {
 	margin-left: 2px;
+}
+
+.basemap-overlay-buttons {
+	display: none !important;
 }
 
 .basemap-overlay-buttons {
@@ -1333,8 +1360,8 @@ body.pan.panning .map-layers:not(.drawing) {
 	margin-left: 5px;
 }
 
-#save-preference {
-	/* display: none; */
+#save-preference, #save-to-clipboard {
+	display: none !important;
 }
 
 .nav-sub-menu {

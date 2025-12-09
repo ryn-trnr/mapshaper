@@ -60,10 +60,10 @@
 	</div></div>
 	<div id="mode-buttons" class="page-header-buttons">
 		<!-- <span class="project-btn header-btn btn">Project</span><span class="separator"> -->
-		<span class="console-btn header-btn btn">Console</span><span class="display-btn header-btn btn">Display</span><span class="separator"></span><span class="separator"></span></span><span class="simplify-btn header-btn btn">Simplify</span><span class="separator"></span><span class="export-btn header-btn btn">Export</span>
+		<span class="console-btn header-btn btn">Console</span><span class="display-btn header-btn btn">[ Basemap Options ]</span><span class="separator"></span><span class="separator"></span></span><span class="simplify-btn header-btn btn">Simplify</span><span class="separator"></span><span class="export-btn header-btn btn">[ Export ]</span>
 	</div>
 	<div id="splash-buttons" class="page-header-buttons">
-		<a href="https://github.com/mbloch/mapshaper/wiki"><span id="wiki-btn" class="header-btn btn">Wiki</span></a><span class="separator"></span><a href="https://github.com/mbloch/mapshaper"><span id="github-btn" class="header-btn btn">GitHub</span></a>
+		<!-- <a href="https://github.com/mbloch/mapshaper/wiki"><span id="wiki-btn" class="header-btn btn">Wiki</span></a><span class="separator"></span><a href="https://github.com/mbloch/mapshaper"><span id="github-btn" class="header-btn btn">GitHub</span></a> -->
 	</div>
 </div>
 
@@ -158,8 +158,8 @@ precision=0.001. Click to see all options.</div></div></div></a>
 		<div><span id="save-preference" style="display: none;"><input type="checkbox">choose output directory</span></div>
 		<div><span id="save-to-clipboard" style="display: inline-block;"><input type="checkbox">save to clipboard</span></div>
 		</div>
-		<div id="export-btn" class="btn dialog-btn" style="margin-top: 4px;">Export</div>
-		<div id="aws-upload-btn" class="btn dialog-btn-red" style="margin-top: 4px;">Upload to AWS</div>
+		<div id="export-btn" class="btn dialog-btn" style="margin-top: 4px;">Local Download</div>
+		<div id="aws-upload-btn" class="btn dialog-btn-red" style="margin-top: 4px;">Upload Scenario</div>
 
 	</div>
 </div>
@@ -169,8 +169,8 @@ precision=0.001. Click to see all options.</div></div></div></a>
 		<div class="close2-btn"></div>
 		<h3>Display options</h3>
 
-		<div class=""><label><input type="checkbox" id="intersections-opt" class="checkbox intersections-opt">detect line intersections</label></div>
-		<div class=""><label><input type="checkbox" id="ghost-opt" class="checkbox ghost-opt">show reference lines</label></div>
+		<div class="" style="display:none"><label><input type="checkbox" id="intersections-opt" class="checkbox intersections-opt">detect line intersections</label></div>
+		<div class="" style="display:none"><label><input type="checkbox" id="ghost-opt" class="checkbox ghost-opt">show reference lines</label></div>
 
 		<div class="basemap-opts">
 			<h4>Basemaps</h4>

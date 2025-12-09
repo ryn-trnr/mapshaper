@@ -264,6 +264,11 @@ export function MshpMap(gui) {
     updateVisibleMapLayers();
     fullBounds = calcFullBounds();
 
+    // Custom bounds to Greater Bendigo upon load
+    if (!prevLyr) {
+      fullBounds = new Bounds(16029796.410409192, -4383463.3277209755, 16093112.012812413, -4426501.122348902); 
+    }
+
     if (prevLyr?.gui.tabular || _activeLyr?.gui.tabular) {
       needReset = true;
     } else if (_activeLyr && internal.layerIsEmpty(_activeLyr)) {
