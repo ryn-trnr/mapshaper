@@ -126,6 +126,7 @@ export function SelectionTool(gui, ext, hit) {
 
   new SimpleButton(popup.findChild('.cancel-btn')).on('click', function() {
     hit.clearSelection();
+    setPinning(false);
   });
 
   function getSelectionBounds() {
