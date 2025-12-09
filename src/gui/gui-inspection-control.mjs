@@ -17,6 +17,31 @@ export function InspectionControl2(gui, hit) {
     // data_change event no longer needed (update is handled below)
     // _self.dispatchEvent('data_change', e.data); // let map know which field has changed
     gui.session.dataValueUpdated(e.ids, e.field, e.value);
+
+    if (e.field == 'cycleway') {
+      var cyclewayColors = {
+        '': '#d3d3d3',
+        'shared_path': '#d62f31',
+        'simple_lane': '#2576b8',
+        'inadequate_lane': '#43a340',
+        'separated_lane': '#ff7f00',
+        'shared_street': '#06c7b4',
+        'bikepath': '#9848a8'
+      };
+      var color = cyclewayColors[e.value];
+      if (color) {
+        var layer = gui.model.getActiveLayer().layer;
+        if (layer && layer.data) {
+          var records = layer.data.getRecords();
+          e.ids.forEach(function(id) {
+            if (records[id]) records[id].stroke = color;
+          });
+          gui.session.dataValueUpdated(e.ids, 'stroke', color);
+          gui.dispatchEvent('map-needs-refresh');
+        }
+      }
+    }
+
     // Refresh the display if a style variable has been changed interactively
     if (internal.isSupportedSvgStyleProperty(e.field)) {
       gui.dispatchEvent('map-needs-refresh');
