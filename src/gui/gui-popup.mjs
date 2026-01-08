@@ -135,14 +135,18 @@ export function Popup(gui, toNext, toPrev) {
       rec = getMultiRecord(recIds, table);
     }
     rec = rec || {};
-    // Check if there's a cycleway field at all
-    if ('cycleway' in rec) {
-        var rowEl = renderRow('cycleway', rec['cycleway'], recIds, table, editable);
-        if (rowEl) {
-            rowEl.appendTo(tableEl);
-            rows++;
+    var fieldsToShow = ['cycleway', 'link_id', 'highway', 'length', 'freespeed', 'capacity', 'adt', 'slope_pct', 'lvl_traf_s', 'tcc_percen', 'osm_id', 'from_id', 'to_id', 'fromx', 'fromy', 'tox', 'toy'];
+    
+    fieldsToShow.forEach(function(key) {
+        if (key in rec) {
+            var rowEl = renderRow(key, rec[key], recIds, table, editable);
+            if (rowEl) {
+                rowEl.appendTo(tableEl);
+                rows++;
+            }
         }
-    }    
+    });
+
     return rows > 0 ? tableEl : null;
   }
 
@@ -167,13 +171,10 @@ export function Popup(gui, toNext, toPrev) {
 
 
   function renderRow(key, val, recIds, table, editable) {
-    // Only render row if field name is 'cycleway'
-    if (key !== 'cycleway') return null;
-    
     var type = getFieldType(val, key, table);
     var str = formatInspectorValue(val, type);
     
-    if (editable) {
+    if (editable && key === 'cycleway') {
       // Create dropdown for cycleway field
       var dropdownOptions = [
         {value: '', label: ''},
@@ -202,16 +203,18 @@ export function Popup(gui, toNext, toPrev) {
         gui.dispatchEvent('data_postupdate', {ids: recIds});
         self.dispatchEvent('data_updated', {field: key, value: newValue, ids: recIds});
       });
+      setFieldClass(cellEl, val, type);
+      return rowEl;
       
     } else {
-      // Non-editable view - show as text
+      // All other fields or non-editable cycleway
       var rowHtml = `<td class="field-name">${key}</td><td><span class="value">${utils.htmlEscape(str)}</span> </td>`;
       var rowEl = El('tr').html(rowHtml);
       var cellEl = rowEl.findChild('.value');
+      
+      setFieldClass(cellEl, val, type);
+      return rowEl;
     }
-    
-    setFieldClass(cellEl, val, type);
-    return rowEl;
   }
 
   function setFieldClass(el, val, type) {
