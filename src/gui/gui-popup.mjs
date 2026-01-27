@@ -86,6 +86,14 @@ export function Popup(gui, toNext, toPrev) {
     var recIds = id >= 0 ? [id] : ids;
     var el = content;
     var table = lyr.data; // table can be null (e.g. if layer has no attribute data)
+
+    if (editable && table) {
+      var rec = recIds.length == 1 ? table.getRecordAt(recIds[0]) : getMultiRecord(recIds, table);
+      if (rec && (rec.highway == 'train' || rec.highway == 'bus')) {
+        editable = false;
+      }
+    }
+
     var tableEl = table ? renderTable(recIds, table, editable) : null;
     el.empty(); // clean up if panel is already open
     if (tableEl) {
