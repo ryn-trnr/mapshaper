@@ -271,6 +271,10 @@ function updateRecords(ids, f, v, table) {
   var records = table.getRecords();
   ids.forEach(function(id) {
     var d = records[id] || {};
+    // Skip updating if highway is bus or train
+    if (d.highway == 'bus' || d.highway == 'train') {
+      return;
+    }
     d[f] = v;
     records[id] = d;
   });

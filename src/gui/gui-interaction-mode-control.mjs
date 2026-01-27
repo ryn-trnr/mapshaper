@@ -4,14 +4,14 @@ import { internal } from './gui-core';
 export function InteractionMode(gui) {
 
   var menus = {
-    standard: ['info', 'selection', 'box'],
-    empty: ['edit_polygons', 'edit_lines', 'edit_points', 'box'],
-    polygons: ['info', 'selection', 'box', 'edit_polygons'],
-    rectangles: ['info', 'selection', 'box', 'rectangles', 'edit_polygons'],
-    lines: ['info', 'selection', 'box', 'edit_lines'], // 'snip_lines'
+    standard: ['info', 'selection'],
+    empty: ['edit_polygons', 'edit_lines', 'edit_points'],
+    polygons: ['info', 'selection', 'edit_polygons'],
+    rectangles: ['info', 'selection', 'rectangles', 'edit_polygons'],
+    lines: ['info', 'selection', 'edit_lines'], // 'snip_lines'
     table: ['info', 'selection'],
-    labels: ['info', 'selection', 'box', 'labels', 'edit_points'],
-    points: ['info', 'selection', 'box', 'edit_points'] // , 'add-points'
+    labels: ['info', 'selection', 'labels', 'edit_points'],
+    points: ['info', 'selection', 'edit_points'] // , 'add-points'
   };
 
   var prompts = {

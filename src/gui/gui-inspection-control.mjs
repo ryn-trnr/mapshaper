@@ -19,7 +19,7 @@ export function InspectionControl2(gui, hit) {
     gui.session.dataValueUpdated(e.ids, e.field, e.value);
 
     if (e.field == 'cycleway') {
-      var cyclewayColors = {
+      var cyclewayColours = {
         '': '#d3d3d3',
         'shared_path': '#d62f31',
         'simple_lane': '#2576b8',
@@ -28,8 +28,8 @@ export function InspectionControl2(gui, hit) {
         'shared_street': '#06c7b4',
         'bikepath': '#9848a8'
       };
-      var color = cyclewayColors[e.value];
-      if (color) {
+      var colour = cyclewayColours[e.value];
+      if (colour) {
         var layer = gui.model.getActiveLayer().layer;
         if (layer && layer.data) {
           var records = layer.data.getRecords();
@@ -64,6 +64,9 @@ export function InspectionControl2(gui, hit) {
                      if (idsToUpdate.has(i)) continue;
                      var key = getShapeKey(shapes[i]);
                      if (key && targetKeys.includes(key)) {
+                         if (records[i] && (records[i].highway == 'bus' || records[i].highway == 'train')) {
+                             continue;
+                         }
                          idsToUpdate.add(i);
                      }
                  }
@@ -73,19 +76,22 @@ export function InspectionControl2(gui, hit) {
           var allIds = Array.from(idsToUpdate);
           allIds.forEach(function(id) {
             if (records[id]) {
-              records[id].stroke = color;
+              // Only apply colour if highway is not bus or train
+              if (records[id].highway != 'bus' && records[id].highway != 'train') {
+                records[id].stroke = colour;
+              }
               if (!e.ids.includes(id)) {
                   records[id].cycleway = e.value;
               }
             }
           });
           
-          gui.session.dataValueUpdated(e.ids, 'stroke', color);
+          gui.session.dataValueUpdated(e.ids, 'stroke', colour);
           
           var otherIds = allIds.filter(function(id) { return !e.ids.includes(id); });
           if (otherIds.length > 0) {
               gui.session.dataValueUpdated(otherIds, 'cycleway', e.value);
-              gui.session.dataValueUpdated(otherIds, 'stroke', color);
+              gui.session.dataValueUpdated(otherIds, 'stroke', colour);
           }
 
           gui.dispatchEvent('map-needs-refresh');
