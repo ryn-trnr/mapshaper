@@ -25,37 +25,37 @@ export function SessionSnapshots(gui) {
   init();
 
   async function init() {
-    btn = gui.buttons.addButton('#ribbon-icon').addClass('menu-btn save-btn');
-    var enabled = await isStorageEnabled();
-    if (!enabled) {
-      btn.remove();
-      return;
-    }
-    menu = El('div').addClass('nav-sub-menu save-menu').appendTo(btn.node());
-    await initialCleanup();
+    // btn = gui.buttons.addButton('#ribbon-icon').addClass('menu-btn save-btn');
+    // var enabled = await isStorageEnabled();
+    // if (!enabled) {
+    //   btn.remove();
+    //   return;
+    // }
+    // menu = El('div').addClass('nav-sub-menu save-menu').appendTo(btn.node());
+    // await initialCleanup();
 
-    window.addEventListener('beforeunload', async function() {
-      // delete snapshot data
-      // This is not ideal, because the data gets deleted even if the user
-      // cancels the page close... but there's no apparent good alternative
-      await finalCleanup();
-    });
+    // window.addEventListener('beforeunload', async function() {
+    //   // delete snapshot data
+    //   // This is not ideal, because the data gets deleted even if the user
+    //   // cancels the page close... but there's no apparent good alternative
+    //   await finalCleanup();
+    // });
 
-    btn.on('mouseenter', function() {
-      btn.addClass('hover');
-      clearTimeout(_menuTimeout); // prevent timed closing
-      if (!_menuOpen) {
-        openMenu();
-      }
-    });
+    // btn.on('mouseenter', function() {
+    //   btn.addClass('hover');
+    //   clearTimeout(_menuTimeout); // prevent timed closing
+    //   if (!_menuOpen) {
+    //     openMenu();
+    //   }
+    // });
 
-    btn.on('mouseleave', function() {
-      if (!_menuOpen) {
-        btn.removeClass('hover');
-      } else {
-        closeMenu(200);
-      }
-    });
+    // btn.on('mouseleave', function() {
+    //   if (!_menuOpen) {
+    //     btn.removeClass('hover');
+    //   } else {
+    //     closeMenu(200);
+    //   }
+    // });
   }
 
   async function renderMenu() {
