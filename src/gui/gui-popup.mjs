@@ -186,12 +186,12 @@ export function Popup(gui, toNext, toPrev) {
       // Create dropdown for cycleway field
       var dropdownOptions = [
         {value: '', label: ''},
+        {value: 'bikepath', label: 'bikepath'},
         {value: 'shared_path', label: 'shared_path'},
+        {value: 'separated_lane', label: 'separated_lane'},
         {value: 'simple_lane', label: 'simple_lane'},
         {value: 'inadequate_lane', label: 'inadequate_lane'},
-        {value: 'separated_lane', label: 'separated_lane'},
-        {value: 'shared_street', label: 'shared_street'},
-        {value: 'bikepath', label: 'bikepath'}
+        {value: 'shared_street', label: 'shared_street'}
       ];
       
       var optionsHtml = dropdownOptions.map(function(option) {

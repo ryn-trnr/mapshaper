@@ -21,12 +21,12 @@ export function InspectionControl2(gui, hit) {
     if (e.field == 'cycleway') {
       var cyclewayColours = {
         '': '#d3d3d3',
+        'bikepath': '#9848a8',
         'shared_path': '#d62f31',
+        'separated_lane': '#ff7f00',
         'simple_lane': '#2576b8',
         'inadequate_lane': '#43a340',
-        'separated_lane': '#ff7f00',
-        'shared_street': '#06c7b4',
-        'bikepath': '#9848a8'
+        'shared_street': '#06c7b4'
       };
       var colour = cyclewayColours[e.value];
       if (colour) {
